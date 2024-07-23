@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::track::TrackLane;
+use crate::{loading::BikeTextures, track::TrackLane, PlayingState};
 
 const SPEED: f32 = 600.0;
 const TURNING_THRESHOLD: f32 = 0.00003;
@@ -9,8 +9,7 @@ pub struct BikePlugin;
 
 impl Plugin for BikePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<BikeTextures>()
-            .add_systems(Startup, setup)
+        app.add_systems(OnEnter(PlayingState::SetupRace), setup)
             .add_systems(
                 Update,
                 (
@@ -20,21 +19,6 @@ impl Plugin for BikePlugin {
                     on_turning_removed,
                 ),
             );
-    }
-}
-
-#[derive(Resource)]
-struct BikeTextures {
-    straight: Handle<Image>,
-    turn: Handle<Image>,
-}
-
-impl FromWorld for BikeTextures {
-    fn from_world(world: &mut World) -> Self {
-        BikeTextures {
-            straight: world.load_asset("images/bike/bike_straight.png"),
-            turn: world.load_asset("images/bike/bike_turn.png"),
-        }
     }
 }
 

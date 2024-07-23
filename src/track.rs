@@ -2,6 +2,8 @@ use std::f32::consts::PI;
 
 use bevy::prelude::*;
 
+use crate::{loading::TrackTexture, PlayingState};
+
 const LAPS: i32 = 4;
 const STRAIGHT_DISTANCE: f32 = 2000.0;
 const TURN_RADIUS: f32 = 620.0;
@@ -11,14 +13,37 @@ pub struct TrackPlugin;
 
 impl Plugin for TrackPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, setup);
+        app.add_systems(OnEnter(PlayingState::SetupRace), setup);
+    }
+}
+
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub enum TrackLaneId {
+    /// Inner track
+    #[default]
+    First,
+    /// Next to innermost track
+    Second,
+    /// Next to outermost track
+    Third,
+    /// Outer track
+    Fourth,
+}
+
+impl TrackLaneId {
+    fn distance_from_inner_edge(&self) -> f32 {
+        let factor = match self {
+            TrackLaneId::First => 1,
+            TrackLaneId::Second => 2,
+            TrackLaneId::Third => 3,
+            TrackLaneId::Fourth => 4,
+        };
+        (LANE_WIDTH / 2.0) + (LANE_WIDTH * factor as f32)
     }
 }
 
 #[derive(Component, Debug, Clone, Copy)]
 pub struct TrackLane {
-    length_from_inner_edge: f32,
-    semicircle_circumfrence: f32,
     lap_distance: f32,
     half_straight_dist: f32,
     turn_radius: f32,
@@ -41,8 +66,6 @@ impl TrackLane {
         let second_straightaway_dist = first_turn_dist + STRAIGHT_DISTANCE;
         let second_turn_dist = second_straightaway_dist + semicircle_circumfrence;
         TrackLane {
-            length_from_inner_edge,
-            semicircle_circumfrence,
             lap_distance,
             half_straight_dist,
             turn_radius,
@@ -104,9 +127,9 @@ impl TrackLane {
     }
 }
 
-fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn setup(mut commands: Commands, track_texture: Res<TrackTexture>) {
     commands.spawn(SpriteBundle {
-        texture: asset_server.load("images/track/track.png"),
-        ..Default::default()
+        texture: track_texture.default.clone(),
+        ..default()
     });
 }
