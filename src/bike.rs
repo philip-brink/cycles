@@ -1,6 +1,10 @@
 use bevy::prelude::*;
 
-use crate::{loading::BikeTextures, track::TrackLane, PlayingState};
+use crate::{
+    loading::BikeTextures,
+    track::{TrackLane, TrackLaneId},
+    PlayingState,
+};
 
 const SPEED: f32 = 600.0;
 const TURNING_THRESHOLD: f32 = 0.00003;
@@ -37,7 +41,12 @@ enum BikeTurning {
 }
 
 fn setup(mut commands: Commands, bike_textures: Res<BikeTextures>) {
-    let lanes = vec![50.0, 150.0, 250.0, 350.0];
+    let lanes = vec![
+        TrackLaneId::First,
+        TrackLaneId::Second,
+        TrackLaneId::Third,
+        TrackLaneId::Fourth,
+    ];
     for lane_pos in lanes {
         let lane = TrackLane::new(lane_pos);
         let (pos, _) = lane.at_distance(0.0);

@@ -2,8 +2,6 @@ use std::f32::consts::PI;
 
 use bevy::prelude::*;
 
-use crate::{loading::TrackTexture, PlayingState};
-
 const LAPS: i32 = 4;
 const STRAIGHT_DISTANCE: f32 = 2000.0;
 const TURN_RADIUS: f32 = 620.0;
@@ -12,8 +10,8 @@ const LANE_WIDTH: f32 = 100.0;
 pub struct TrackPlugin;
 
 impl Plugin for TrackPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(PlayingState::SetupRace), setup);
+    fn build(&self, _app: &mut App) {
+        // TODO
     }
 }
 
@@ -55,7 +53,8 @@ pub struct TrackLane {
 }
 
 impl TrackLane {
-    pub fn new(length_from_inner_edge: f32) -> Self {
+    pub fn new(lane: TrackLaneId) -> Self {
+        let length_from_inner_edge = lane.distance_from_inner_edge();
         let semicircle_circumfrence = PI * (TURN_RADIUS + length_from_inner_edge);
         let lap_distance = (STRAIGHT_DISTANCE + semicircle_circumfrence) * 2.0;
         let half_straight_dist = STRAIGHT_DISTANCE / 2.0;
@@ -125,11 +124,4 @@ impl TrackLane {
     pub fn finished(&self, distance: f32) -> bool {
         distance >= self.lap_distance * LAPS as f32
     }
-}
-
-fn setup(mut commands: Commands, track_texture: Res<TrackTexture>) {
-    commands.spawn(SpriteBundle {
-        texture: track_texture.default.clone(),
-        ..default()
-    });
 }
