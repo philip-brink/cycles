@@ -9,6 +9,7 @@ mod camera;
 mod game;
 mod loading;
 mod menu;
+mod opponent;
 mod player;
 mod race;
 mod track;

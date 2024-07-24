@@ -3,70 +3,55 @@ use bevy::prelude::*;
 use crate::{
     loading::BikeTextures,
     track::{TrackLane, TrackLaneId},
-    PlayingState,
 };
 
-const SPEED: f32 = 600.0;
 const TURNING_THRESHOLD: f32 = 0.00003;
 
 pub struct BikePlugin;
 
 impl Plugin for BikePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(PlayingState::SetupRace), setup)
-            .add_systems(
-                Update,
-                (
-                    update_bikes,
-                    toggle_moving,
-                    on_turning_added,
-                    on_turning_removed,
-                ),
-            );
+        app.add_systems(
+            Update,
+            (
+                update_bikes,
+                toggle_moving,
+                on_turning_added,
+                on_turning_removed,
+            ),
+        );
     }
 }
 
 #[derive(Component, Debug, Clone, Copy)]
-struct Bike {
+pub struct Bike {
     moving: bool,
     speed: f32,
     distance: f32,
     lane: TrackLane,
 }
 
+impl Bike {
+    pub fn new(initial_lane: &TrackLaneId) -> Self {
+        let lane = TrackLane::new(initial_lane);
+        let distance = 0.0;
+        Self {
+            moving: false,
+            speed: 600.0,
+            distance,
+            lane,
+        }
+    }
+
+    pub fn position_and_direction(&self) -> (Vec2, Quat) {
+        self.lane.at_distance(self.distance)
+    }
+}
+
 #[derive(Component, Debug, Clone, Copy, Eq, PartialEq)]
 enum BikeTurning {
     Left,
     Right,
-}
-
-fn setup(mut commands: Commands, bike_textures: Res<BikeTextures>) {
-    let lanes = vec![
-        TrackLaneId::First,
-        TrackLaneId::Second,
-        TrackLaneId::Third,
-        TrackLaneId::Fourth,
-    ];
-    for lane_pos in lanes {
-        let lane = TrackLane::new(lane_pos);
-        let (pos, _) = lane.at_distance(0.0);
-        commands.spawn((
-            Bike {
-                moving: false,
-                speed: SPEED,
-                distance: 0.0,
-                lane: TrackLane::new(lane_pos),
-            },
-            SpriteBundle {
-                texture: bike_textures.straight.clone(),
-                transform: Transform {
-                    translation: pos.extend(1.0),
-                    ..default()
-                },
-                ..default()
-            },
-        ));
-    }
 }
 
 fn update_bikes(

@@ -1,7 +1,12 @@
 use bevy::prelude::*;
+use rand::Rng;
 
 use crate::{
+    bike::Bike,
     loading::{BikeTextures, TrackTexture},
+    opponent::Opponent,
+    player::Player,
+    track::TrackLaneId,
     PlayingState,
 };
 
@@ -9,10 +14,7 @@ pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            OnEnter(PlayingState::SetupRace),
-            (setup_track, setup_player, setup_opponents),
-        );
+        app.add_systems(OnEnter(PlayingState::SetupRace), (setup_track, setup_bikes));
     }
 }
 
@@ -23,6 +25,35 @@ fn setup_track(mut commands: Commands, track_texture: Res<TrackTexture>) {
     });
 }
 
-fn setup_player(mut commands: Commands, track_texture: Res<BikeTextures>) {}
-
-fn setup_opponents(mut commands: Commands, track_texture: Res<BikeTextures>) {}
+fn setup_bikes(mut commands: Commands, bike_textures: Res<BikeTextures>) {
+    let lanes = [
+        TrackLaneId::First,
+        TrackLaneId::Second,
+        TrackLaneId::Third,
+        TrackLaneId::Fourth,
+    ];
+    let mut rng = rand::thread_rng();
+    let player_lane_index = rng.gen_range(0..lanes.len());
+    for (index, lane_id) in lanes.iter().enumerate() {
+        let bike = Bike::new(lane_id);
+        let (position, _) = bike.position_and_direction();
+        let entity = commands
+            .spawn((
+                bike,
+                SpriteBundle {
+                    texture: bike_textures.straight.clone(),
+                    transform: Transform {
+                        translation: position.extend(5.0),
+                        ..default()
+                    },
+                    ..default()
+                },
+            ))
+            .id();
+        if player_lane_index == index {
+            commands.entity(entity).insert(Player);
+        } else {
+            commands.entity(entity).insert(Opponent);
+        };
+    }
+}

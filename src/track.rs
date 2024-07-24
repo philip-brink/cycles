@@ -31,10 +31,10 @@ pub enum TrackLaneId {
 impl TrackLaneId {
     fn distance_from_inner_edge(&self) -> f32 {
         let factor = match self {
-            TrackLaneId::First => 1,
-            TrackLaneId::Second => 2,
-            TrackLaneId::Third => 3,
-            TrackLaneId::Fourth => 4,
+            TrackLaneId::First => 0,
+            TrackLaneId::Second => 1,
+            TrackLaneId::Third => 2,
+            TrackLaneId::Fourth => 3,
         };
         (LANE_WIDTH / 2.0) + (LANE_WIDTH * factor as f32)
     }
@@ -53,7 +53,7 @@ pub struct TrackLane {
 }
 
 impl TrackLane {
-    pub fn new(lane: TrackLaneId) -> Self {
+    pub fn new(lane: &TrackLaneId) -> Self {
         let length_from_inner_edge = lane.distance_from_inner_edge();
         let semicircle_circumfrence = PI * (TURN_RADIUS + length_from_inner_edge);
         let lap_distance = (STRAIGHT_DISTANCE + semicircle_circumfrence) * 2.0;
