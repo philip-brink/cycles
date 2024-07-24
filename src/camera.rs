@@ -14,7 +14,8 @@ impl Plugin for CameraDollyPlugin {
 fn setup(mut commands: Commands) {
     commands.spawn(Camera2dBundle {
         projection: OrthographicProjection {
-            near: -10.0,
+            near: -1000.0,
+            far: 1000.0,
             scale: 2.0,
             ..default()
         },

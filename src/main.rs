@@ -10,6 +10,7 @@ mod game;
 mod loading;
 mod menu;
 mod opponent;
+mod path_highlight;
 mod player;
 mod race;
 mod track;
@@ -21,6 +22,7 @@ use camera::CameraDollyPlugin;
 use game::GamePlugin;
 use loading::LoadingPlugin;
 use menu::MenuPlugin;
+use path_highlight::PathHighlightPlugin;
 use player::PlayerPlugin;
 use race::RacePlugin;
 use track::TrackPlugin;
@@ -44,10 +46,10 @@ enum PlayingState {
 
 #[derive(SubStates, Default, Debug, Hash, PartialEq, Eq, Clone, Copy)]
 #[source(PlayingState = PlayingState::Racing)]
-enum RaceState {
+enum RacingState {
     #[default]
-    Simulating,
     Commanding,
+    Simulating,
     Paused,
 }
 
@@ -70,9 +72,10 @@ fn main() {
             BikePlugin,
             PlayerPlugin,
             RacePlugin,
+            PathHighlightPlugin,
         ))
         .init_state::<GameState>()
         .add_sub_state::<PlayingState>()
-        .add_sub_state::<RaceState>()
+        .add_sub_state::<RacingState>()
         .run();
 }

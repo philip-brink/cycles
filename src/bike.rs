@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use crate::{
     loading::BikeTextures,
     track::{TrackLane, TrackLaneId},
+    PlayingState, RacingState,
 };
 
 const TURNING_THRESHOLD: f32 = 0.00003;
@@ -13,21 +14,21 @@ impl Plugin for BikePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (
-                update_bikes,
-                toggle_moving,
-                on_turning_added,
-                on_turning_removed,
-            ),
+            (on_turning_added, on_turning_removed).run_if(in_state(PlayingState::Racing)),
+        )
+        .add_systems(
+            Update,
+            (update_bikes).run_if(in_state(RacingState::Simulating)),
         );
     }
 }
 
 #[derive(Component, Debug, Clone, Copy)]
 pub struct Bike {
-    moving: bool,
+    pub lane_id: TrackLaneId,
+    pub distance: f32,
+    pub moving: bool,
     speed: f32,
-    distance: f32,
     lane: TrackLane,
 }
 
@@ -36,9 +37,10 @@ impl Bike {
         let lane = TrackLane::new(initial_lane);
         let distance = 0.0;
         Self {
+            lane_id: *initial_lane,
+            distance,
             moving: false,
             speed: 600.0,
-            distance,
             lane,
         }
     }
@@ -71,21 +73,6 @@ fn update_bikes(
             } else if !turning && maybe_turning.is_some() {
                 commands.entity(entity).remove::<BikeTurning>();
             }
-        }
-    }
-}
-
-fn toggle_moving(
-    mut q_bike: Query<(Entity, &mut Bike)>,
-    keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut commands: Commands,
-) {
-    if keyboard_input.any_just_pressed([KeyCode::Space, KeyCode::Enter]) {
-        for (entity, mut bike) in q_bike.iter_mut() {
-            if bike.moving {
-                commands.entity(entity).remove::<BikeTurning>();
-            }
-            bike.moving = !bike.moving;
         }
     }
 }

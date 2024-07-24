@@ -14,7 +14,11 @@ pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(PlayingState::SetupRace), (setup_track, setup_bikes));
+        app.add_systems(
+            OnEnter(PlayingState::SetupRace),
+            (setup_track, setup_bikes).before(set_playing_state),
+        )
+        .add_systems(OnEnter(PlayingState::SetupRace), set_playing_state);
     }
 }
 
@@ -56,4 +60,8 @@ fn setup_bikes(mut commands: Commands, bike_textures: Res<BikeTextures>) {
             commands.entity(entity).insert(Opponent);
         };
     }
+}
+
+fn set_playing_state(mut next_state: ResMut<NextState<PlayingState>>) {
+    next_state.set(PlayingState::Racing);
 }
