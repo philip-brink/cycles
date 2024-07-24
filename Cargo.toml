@@ -16,4 +16,7 @@ opt-level = 1
 opt-level = 3
 
 [dependencies]
-bevy = "0.14"
+# IMPORTANT: Remove dynamic linking before release
+# https://bevyengine.org/learn/quick-start/getting-started/setup/
+bevy = { version = "0.14", features = ["dynamic_linking"] }
+rand = "0.8"
