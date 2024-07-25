@@ -29,7 +29,7 @@ pub struct Bike {
     pub distance: f32,
     pub moving: bool,
     speed: f32,
-    lane: TrackLane,
+    pub lane: TrackLane,
 }
 
 impl Bike {
@@ -46,7 +46,7 @@ impl Bike {
     }
 
     pub fn position_and_direction(&self) -> (Vec2, Quat) {
-        self.lane.at_distance(self.distance)
+        self.lane.position_and_rotation(self.distance)
     }
 }
 
@@ -64,8 +64,8 @@ fn update_bikes(
     for (entity, mut bike, mut transform, maybe_turning) in q_bike.iter_mut() {
         if bike.moving {
             bike.distance += bike.speed * time.delta_seconds();
-            let (pos, rot) = bike.lane.at_distance(bike.distance);
-            transform.translation = pos.extend(1.0);
+            let (pos, rot) = bike.lane.position_and_rotation(bike.distance);
+            transform.translation = pos.extend(5.0);
             let turning = (transform.rotation - rot).length_squared() > TURNING_THRESHOLD;
             transform.rotation = rot;
             if turning && maybe_turning.is_none() {
