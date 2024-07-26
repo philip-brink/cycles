@@ -6,6 +6,7 @@
 
 mod bike;
 mod camera;
+mod controls;
 mod game;
 mod loading;
 mod menu;
@@ -19,6 +20,7 @@ use bevy::asset::AssetMetaCheck;
 use bevy::prelude::*;
 use bike::BikePlugin;
 use camera::CameraDollyPlugin;
+use controls::ControlsPlugin;
 use game::GamePlugin;
 use loading::LoadingPlugin;
 use menu::MenuPlugin;
@@ -71,6 +73,7 @@ fn main() {
             TrackPlugin,
             BikePlugin,
             PlayerPlugin,
+            ControlsPlugin,
             RacePlugin,
             PathHighlightPlugin,
         ))

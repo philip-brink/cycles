@@ -19,7 +19,9 @@ impl Plugin for BikePlugin {
         .add_systems(
             Update,
             (update_bikes).run_if(in_state(RacingState::Simulating)),
-        );
+        )
+        .add_systems(OnEnter(RacingState::Commanding), on_enter_commanding_state)
+        .add_systems(OnEnter(RacingState::Simulating), on_enter_simulating_state);
     }
 }
 
@@ -98,5 +100,17 @@ fn on_turning_removed(
         if let Ok(mut image_handle) = q_bike.get_mut(entity) {
             *image_handle = bike_textures.straight.clone();
         }
+    }
+}
+
+fn on_enter_simulating_state(mut q_bikes: Query<&mut Bike>) {
+    for mut bike in q_bikes.iter_mut() {
+        bike.moving = true;
+    }
+}
+
+fn on_enter_commanding_state(mut q_bikes: Query<&mut Bike>) {
+    for mut bike in q_bikes.iter_mut() {
+        bike.moving = false;
     }
 }

@@ -1,4 +1,4 @@
-use std::f32::consts::PI;
+use std::f32::consts::{FRAC_PI_2, PI};
 
 use bevy::prelude::*;
 
@@ -190,7 +190,7 @@ impl TrackLane {
                 let position_angle = 3.0 * PI / 2.0 + position_angle_offset;
                 let horizontal = self.half_straight_dist + self.turn_radius * position_angle.cos();
                 let vertical = self.turn_radius * position_angle.sin();
-                let rot = Quat::from_rotation_z(position_angle + PI / 2.0);
+                let rot = Quat::from_rotation_z(position_angle + FRAC_PI_2);
                 (Vec2::new(horizontal, vertical), rot)
             }
             TrackSection::SecondStraightaway => {
