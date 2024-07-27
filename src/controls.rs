@@ -1,12 +1,18 @@
 mod actions;
+mod buttons;
+mod mouse;
 
-use std::f32::consts::{FRAC_PI_2, PI};
+use std::f32::consts::FRAC_PI_2;
 
 use bevy::prelude::*;
 
 use crate::{bike::Bike, loading::IconTextures, player::Player, RacingState};
 
-use self::actions::ActionKind;
+use self::{
+    actions::{ActionKind, ActionsPlugin},
+    buttons::{make_button, ActionButton, ActionButtonsPlugin, ButtonRowPositions},
+    mouse::MousePlugin,
+};
 
 const BIKE_TO_BUTTON_SPACING: f32 = 150.0;
 const BUTTON_SPACING: f32 = 80.0;
@@ -15,25 +21,12 @@ pub struct ControlsPlugin;
 
 impl Plugin for ControlsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(RacingState::Commanding), on_enter_commanding_state)
+        app.add_plugins(ActionButtonsPlugin)
+            .add_plugins(MousePlugin)
+            .add_plugins(ActionsPlugin)
+            .add_systems(OnEnter(RacingState::Commanding), on_enter_commanding_state)
             .add_systems(OnEnter(RacingState::Simulating), on_enter_simulating_state);
     }
-}
-
-#[derive(Component, Copy, Clone, PartialEq, Eq, Debug)]
-struct ControlButton;
-
-struct ButtonRowPositions {
-    left: Vec3,
-    middle: Vec3,
-    right: Vec3,
-    rotation: Quat,
-}
-
-#[derive(Bundle)]
-struct ActionButtonBundle {
-    control_button: ControlButton,
-    sprite: SpriteBundle,
 }
 
 fn on_enter_commanding_state(
@@ -124,10 +117,7 @@ fn on_enter_commanding_state(
     }
 }
 
-fn on_enter_simulating_state(
-    mut commands: Commands,
-    q_buttons: Query<Entity, With<ControlButton>>,
-) {
+fn on_enter_simulating_state(mut commands: Commands, q_buttons: Query<Entity, With<ActionButton>>) {
     for entity in q_buttons.iter() {
         commands.entity(entity).despawn_recursive();
     }
@@ -136,7 +126,7 @@ fn on_enter_simulating_state(
 fn button_row_positions(bike: &Bike, row_index: usize) -> ButtonRowPositions {
     let distance = bike.distance + BIKE_TO_BUTTON_SPACING + row_index as f32 * BUTTON_SPACING;
     let (position, rotation) = bike.lane.position_and_rotation(distance);
-    let middle = position.extend(3.0);
+    let middle = position.extend(10.0);
     let constant_button_rotation = Quat::from_rotation_z(-FRAC_PI_2);
     let button_rotation = constant_button_rotation.mul_quat(rotation);
     let offset = Vec3::new(0.0, BUTTON_SPACING, 0.0);
@@ -146,39 +136,5 @@ fn button_row_positions(bike: &Bike, row_index: usize) -> ButtonRowPositions {
         middle,
         right: middle - rotated_offset,
         rotation: button_rotation,
-    }
-}
-
-fn make_button(
-    action_kind: ActionKind,
-    position: Vec3,
-    rotation: Quat,
-    icon_textures: &IconTextures,
-) -> ActionButtonBundle {
-    let texture = match action_kind {
-        ActionKind::Accelerate => icon_textures.accelerate.clone(),
-        ActionKind::Watch => icon_textures.watch.clone(),
-        ActionKind::Skid => icon_textures.skid.clone(),
-        ActionKind::Stop => icon_textures.stop.clone(),
-        ActionKind::Left => icon_textures.left.clone(),
-        ActionKind::LeftLeft => icon_textures.left_left.clone(),
-        ActionKind::LeftElbow => icon_textures.left_elbow.clone(),
-        ActionKind::LeftHip => icon_textures.left_hip.clone(),
-        ActionKind::Right => icon_textures.right.clone(),
-        ActionKind::RightRight => icon_textures.right_right.clone(),
-        ActionKind::RightElbow => icon_textures.right_elbow.clone(),
-        ActionKind::RightHip => icon_textures.right_hip.clone(),
-    };
-    ActionButtonBundle {
-        control_button: ControlButton,
-        sprite: SpriteBundle {
-            transform: Transform {
-                translation: position,
-                rotation,
-                scale: Vec3::splat(1.0),
-            },
-            texture,
-            ..default()
-        },
     }
 }

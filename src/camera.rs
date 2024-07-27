@@ -11,16 +11,23 @@ impl Plugin for CameraDollyPlugin {
     }
 }
 
+/// Used to help identify our main camera
+#[derive(Component)]
+pub struct MainCamera;
+
 fn setup(mut commands: Commands) {
-    commands.spawn(Camera2dBundle {
-        projection: OrthographicProjection {
-            near: -1000.0,
-            far: 1000.0,
-            scale: 2.0,
+    commands.spawn((
+        MainCamera,
+        Camera2dBundle {
+            projection: OrthographicProjection {
+                near: -1000.0,
+                far: 1000.0,
+                scale: 2.0,
+                ..default()
+            },
             ..default()
         },
-        ..default()
-    });
+    ));
 }
 
 fn move_camera(

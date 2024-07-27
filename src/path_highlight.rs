@@ -62,7 +62,7 @@ fn show_path_highlight(bikes: Query<&Bike, With<Player>>, mut commands: Commands
                 },
                 ..default()
             },
-            Stroke::new(PURPLE.with_alpha(0.8), 10.0),
+            Stroke::new(PURPLE.with_alpha(0.8), 30.0),
         ));
     }
 }
