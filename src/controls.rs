@@ -6,7 +6,13 @@ use std::f32::consts::FRAC_PI_2;
 
 use bevy::prelude::*;
 
-use crate::{bike::Bike, loading::IconTextures, player::Player, RacingState};
+use crate::{
+    bike::Bike,
+    loading::IconTextures,
+    player::Player,
+    track::{TrackLane, TrackLanes},
+    RacingState,
+};
 
 use self::{
     actions::{ActionKind, ActionsPlugin},
@@ -33,9 +39,12 @@ fn on_enter_commanding_state(
     mut commands: Commands,
     q_player_bike: Query<&Bike, With<Player>>,
     icon_textures: Res<IconTextures>,
+    track_lanes: Res<TrackLanes>,
 ) {
     for bike in q_player_bike.iter() {
-        let row_0 = button_row_positions(bike, 0);
+        let bike_distance = bike.distance;
+        let track_lane = track_lanes.track_lane(&bike.current_lane_id);
+        let row_0 = button_row_positions(bike_distance, track_lane, 0);
         commands.spawn(make_button(
             ActionKind::LeftHip,
             row_0.left,
@@ -55,7 +64,7 @@ fn on_enter_commanding_state(
             &icon_textures,
         ));
 
-        let row_1 = button_row_positions(bike, 1);
+        let row_1 = button_row_positions(bike_distance, track_lane, 1);
         commands.spawn(make_button(
             ActionKind::LeftElbow,
             row_1.left,
@@ -75,7 +84,7 @@ fn on_enter_commanding_state(
             &icon_textures,
         ));
 
-        let row_2 = button_row_positions(bike, 2);
+        let row_2 = button_row_positions(bike_distance, track_lane, 2);
         commands.spawn(make_button(
             ActionKind::LeftLeft,
             row_2.left,
@@ -95,7 +104,7 @@ fn on_enter_commanding_state(
             &icon_textures,
         ));
 
-        let row_3 = button_row_positions(bike, 3);
+        let row_3 = button_row_positions(bike_distance, track_lane, 3);
         commands.spawn(make_button(
             ActionKind::Left,
             row_3.left,
@@ -123,9 +132,13 @@ fn on_enter_simulating_state(mut commands: Commands, q_buttons: Query<Entity, Wi
     }
 }
 
-fn button_row_positions(bike: &Bike, row_index: usize) -> ButtonRowPositions {
-    let distance = bike.distance + BIKE_TO_BUTTON_SPACING + row_index as f32 * BUTTON_SPACING;
-    let (position, rotation) = bike.lane.position_and_rotation(distance);
+fn button_row_positions(
+    bike_distance: f32,
+    track_lane: &TrackLane,
+    row_index: usize,
+) -> ButtonRowPositions {
+    let distance = bike_distance + BIKE_TO_BUTTON_SPACING + row_index as f32 * BUTTON_SPACING;
+    let (position, rotation) = track_lane.position_and_rotation(distance);
     let middle = position.extend(10.0);
     let constant_button_rotation = Quat::from_rotation_z(-FRAC_PI_2);
     let button_rotation = constant_button_rotation.mul_quat(rotation);

@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::{
     loading::BikeTextures,
-    track::{TrackLane, TrackLaneId},
+    track::{TrackLaneId, TrackLanes},
     PlayingState, RacingState,
 };
 
@@ -27,28 +27,23 @@ impl Plugin for BikePlugin {
 
 #[derive(Component, Debug, Clone, Copy)]
 pub struct Bike {
-    pub lane_id: TrackLaneId,
+    pub current_lane_id: TrackLaneId,
+    pub desired_lane_id: TrackLaneId,
     pub distance: f32,
     pub moving: bool,
     speed: f32,
-    pub lane: TrackLane,
 }
 
 impl Bike {
     pub fn new(initial_lane: &TrackLaneId) -> Self {
-        let lane = TrackLane::new(initial_lane);
         let distance = 0.0;
         Self {
-            lane_id: *initial_lane,
+            current_lane_id: *initial_lane,
+            desired_lane_id: *initial_lane,
             distance,
             moving: false,
             speed: 600.0,
-            lane,
         }
-    }
-
-    pub fn position_and_direction(&self) -> (Vec2, Quat) {
-        self.lane.position_and_rotation(self.distance)
     }
 }
 
@@ -61,12 +56,14 @@ enum BikeTurning {
 fn update_bikes(
     mut q_bike: Query<(Entity, &mut Bike, &mut Transform, Option<&BikeTurning>)>,
     time: Res<Time>,
+    lanes: Res<TrackLanes>,
     mut commands: Commands,
 ) {
     for (entity, mut bike, mut transform, maybe_turning) in q_bike.iter_mut() {
         if bike.moving {
+            let current_lane = lanes.track_lane(&bike.current_lane_id);
             bike.distance += bike.speed * time.delta_seconds();
-            let (pos, rot) = bike.lane.position_and_rotation(bike.distance);
+            let (pos, rot) = current_lane.position_and_rotation(bike.distance);
             transform.translation = pos.extend(5.0);
             let turning = (transform.rotation - rot).length_squared() > TURNING_THRESHOLD;
             transform.rotation = rot;

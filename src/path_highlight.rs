@@ -6,7 +6,7 @@ use bevy_prototype_lyon::{
     draw::Stroke, entity::ShapeBundle, path::PathBuilder, plugin::ShapePlugin,
 };
 
-use crate::{bike::Bike, player::Player, RacingState};
+use crate::{bike::Bike, player::Player, track::TrackLanes, RacingState};
 
 const PATH_LENGTH: f32 = 750.0;
 
@@ -23,9 +23,13 @@ impl Plugin for PathHighlightPlugin {
 #[derive(Component)]
 struct PathHighlight;
 
-fn show_path_highlight(bikes: Query<&Bike, With<Player>>, mut commands: Commands) {
+fn show_path_highlight(
+    bikes: Query<&Bike, With<Player>>,
+    mut commands: Commands,
+    track_lanes: Res<TrackLanes>,
+) {
     for bike in bikes.iter() {
-        let lane = bike.lane;
+        let lane = track_lanes.track_lane(&bike.current_lane_id);
         let (pos, _) = lane.position_and_rotation(bike.distance);
         let mut path_builder = PathBuilder::new();
         path_builder.move_to(pos);

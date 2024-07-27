@@ -10,8 +10,38 @@ const LANE_WIDTH: f32 = 100.0;
 pub struct TrackPlugin;
 
 impl Plugin for TrackPlugin {
-    fn build(&self, _app: &mut App) {
-        // TODO
+    fn build(&self, app: &mut App) {
+        app.init_resource::<TrackLanes>();
+    }
+}
+
+#[derive(Resource, Copy, Clone, Debug)]
+pub struct TrackLanes {
+    first: TrackLane,
+    second: TrackLane,
+    third: TrackLane,
+    fourth: TrackLane,
+}
+
+impl TrackLanes {
+    pub fn track_lane(&self, id: &TrackLaneId) -> &TrackLane {
+        match id {
+            TrackLaneId::First => &self.first,
+            TrackLaneId::Second => &self.second,
+            TrackLaneId::Third => &self.third,
+            TrackLaneId::Fourth => &self.fourth,
+        }
+    }
+}
+
+impl Default for TrackLanes {
+    fn default() -> Self {
+        Self {
+            first: TrackLane::new(&TrackLaneId::First),
+            second: TrackLane::new(&TrackLaneId::Second),
+            third: TrackLane::new(&TrackLaneId::Third),
+            fourth: TrackLane::new(&TrackLaneId::Fourth),
+        }
     }
 }
 
@@ -29,7 +59,7 @@ pub enum TrackLaneId {
 }
 
 impl TrackLaneId {
-    fn distance_from_inner_edge(&self) -> f32 {
+    fn length_from_inner_edge(&self) -> f32 {
         let factor = match self {
             TrackLaneId::First => 0,
             TrackLaneId::Second => 1,
@@ -64,7 +94,7 @@ pub struct TrackLane {
 
 impl TrackLane {
     pub fn new(lane: &TrackLaneId) -> Self {
-        let length_from_inner_edge = lane.distance_from_inner_edge();
+        let length_from_inner_edge = lane.length_from_inner_edge();
         let semicircle_circumfrence = PI * (TURN_RADIUS + length_from_inner_edge);
         let lap_distance = (STRAIGHT_DISTANCE + semicircle_circumfrence) * 2.0;
         let half_straight_dist = STRAIGHT_DISTANCE / 2.0;

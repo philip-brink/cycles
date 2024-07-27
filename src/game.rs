@@ -6,7 +6,7 @@ use crate::{
     loading::{BikeTextures, TrackTexture},
     opponent::Opponent,
     player::Player,
-    track::TrackLaneId,
+    track::{TrackLaneId, TrackLanes},
     PlayingState,
 };
 
@@ -29,7 +29,11 @@ fn setup_track(mut commands: Commands, track_texture: Res<TrackTexture>) {
     });
 }
 
-fn setup_bikes(mut commands: Commands, bike_textures: Res<BikeTextures>) {
+fn setup_bikes(
+    mut commands: Commands,
+    bike_textures: Res<BikeTextures>,
+    track_lanes: Res<TrackLanes>,
+) {
     let lanes = [
         TrackLaneId::First,
         TrackLaneId::Second,
@@ -39,8 +43,9 @@ fn setup_bikes(mut commands: Commands, bike_textures: Res<BikeTextures>) {
     let mut rng = rand::thread_rng();
     let player_lane_index = rng.gen_range(0..lanes.len());
     for (index, lane_id) in lanes.iter().enumerate() {
+        let lane = track_lanes.track_lane(lane_id);
         let bike = Bike::new(lane_id);
-        let (position, _) = bike.position_and_direction();
+        let (position, _) = lane.position_and_rotation(bike.distance);
         let entity = commands
             .spawn((
                 bike,
