@@ -20,4 +20,4 @@ opt-level = 3
 # https://bevyengine.org/learn/quick-start/getting-started/setup/
 bevy = { version = "0.14", features = ["dynamic_linking"] }
 bevy_prototype_lyon = "0.12.0"
-rand = "0.8"
+fastrand = "2.1.0"

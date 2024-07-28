@@ -74,7 +74,7 @@ fn try_action(
                     }
                 }
                 BikeAction::Watch => {}
-                BikeAction::Skid => todo!(),
+                BikeAction::Skid => {}
                 BikeAction::Stop => {
                     if maybe_change_speed.is_none() {
                         commands.entity(entity).insert(ChangeSpeed {
@@ -95,8 +95,8 @@ fn try_action(
                         bike.current_lane_id.left_left(),
                     ));
                 }
-                BikeAction::LeftElbow => todo!(),
-                BikeAction::LeftHip => todo!(),
+                BikeAction::LeftElbow => {}
+                BikeAction::LeftHip => {}
                 BikeAction::Right => {
                     commands.entity(entity).insert(ChangeLane::new(
                         bike.current_lane_id,
@@ -109,8 +109,8 @@ fn try_action(
                         bike.current_lane_id.right_right(),
                     ));
                 }
-                BikeAction::RightElbow => todo!(),
-                BikeAction::RightHip => todo!(),
+                BikeAction::RightElbow => {}
+                BikeAction::RightHip => {}
             }
         }
     }

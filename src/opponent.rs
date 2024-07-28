@@ -1,12 +1,60 @@
 use bevy::prelude::*;
 
-pub struct PlayerPlugin;
+use crate::{
+    actions::{self, BikeAction},
+    bike::Bike,
+    random::Randomness,
+    RacingState,
+};
 
-impl Plugin for PlayerPlugin {
-    fn build(&self, _app: &mut App) {
-        // todo
+const BIKE_ACTIONS: [actions::BikeAction; 12] = [
+    BikeAction::Accelerate,
+    BikeAction::Watch,
+    BikeAction::Skid,
+    BikeAction::Stop,
+    BikeAction::Left,
+    BikeAction::LeftLeft,
+    BikeAction::LeftElbow,
+    BikeAction::LeftHip,
+    BikeAction::Right,
+    BikeAction::RightRight,
+    BikeAction::RightElbow,
+    BikeAction::RightHip,
+];
+
+pub struct OpponentPlugin;
+
+impl Plugin for OpponentPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(OnEnter(RacingState::Commanding), act);
     }
 }
 
 #[derive(Component, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Opponent;
+
+fn act(
+    q_opponents: Query<(Entity, &Bike), With<Opponent>>,
+    mut commands: Commands,
+    mut randomness: ResMut<Randomness>,
+) {
+    for (entity, bike) in &q_opponents {
+        if BikeAction::Accelerate.can_do(bike) {
+            commands.entity(entity).insert(BikeAction::Accelerate);
+        } else {
+            let possible_actions = generate_possible_actions(bike);
+            let random_action_index = randomness.rng.usize(0..possible_actions.len());
+            commands
+                .entity(entity)
+                .insert(possible_actions[random_action_index]);
+        }
+    }
+}
+
+fn generate_possible_actions(bike: &Bike) -> Vec<BikeAction> {
+    BIKE_ACTIONS
+        .iter()
+        .filter(|e| e.can_do(bike))
+        .copied()
+        .collect::<Vec<BikeAction>>()
+}

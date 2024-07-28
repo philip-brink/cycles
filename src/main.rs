@@ -16,6 +16,7 @@ mod opponent;
 mod path_highlight;
 mod player;
 mod race;
+mod random;
 mod track;
 
 use actions::ActionsPlugin;
@@ -28,9 +29,11 @@ use controls::ControlsPlugin;
 use game::GamePlugin;
 use loading::LoadingPlugin;
 use menu::MenuPlugin;
+use opponent::OpponentPlugin;
 use path_highlight::PathHighlightPlugin;
 use player::PlayerPlugin;
 use race::RacePlugin;
+use random::RandomnessPlugin;
 use track::TrackPlugin;
 
 #[derive(States, Default, PartialEq, Eq, Hash, Clone, Debug)]
@@ -71,6 +74,7 @@ fn main() {
                 ..default()
             }),
             LoadingPlugin,
+            RandomnessPlugin,
             GamePlugin,
             MenuPlugin,
             CameraDollyPlugin,
@@ -79,6 +83,7 @@ fn main() {
             CollisionPlugin,
             ActionsPlugin,
             PlayerPlugin,
+            OpponentPlugin,
             ControlsPlugin,
             RacePlugin,
             PathHighlightPlugin,

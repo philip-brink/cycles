@@ -1,5 +1,4 @@
 use bevy::{prelude::*, time::Stopwatch};
-use rand::Rng;
 
 use crate::{
     bike::Bike,
@@ -7,6 +6,7 @@ use crate::{
     loading::{BikeTextures, TrackTexture},
     opponent::Opponent,
     player::Player,
+    random::Randomness,
     track::{TrackLaneId, TrackLanes},
     PlayingState, RacingState,
 };
@@ -78,6 +78,7 @@ fn setup_bikes(
     mut commands: Commands,
     bike_textures: Res<BikeTextures>,
     track_lanes: Res<TrackLanes>,
+    mut randomness: ResMut<Randomness>,
 ) {
     let lanes = [
         TrackLaneId::First,
@@ -85,8 +86,7 @@ fn setup_bikes(
         TrackLaneId::Third,
         TrackLaneId::Fourth,
     ];
-    let mut rng = rand::thread_rng();
-    let player_lane_index = rng.gen_range(0..lanes.len());
+    let player_lane_index = randomness.rng.usize(..lanes.len());
     for (index, lane_id) in lanes.iter().enumerate() {
         let lane = track_lanes.track_lane(lane_id);
         let bike = Bike::new(lane_id, 1400.0, 0.5, 800.0);

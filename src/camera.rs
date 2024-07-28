@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use crate::{bike::Bike, player::Player, PlayingState, RacingState};
+
 const CAMERA_MOVEMENT_SPEED: f32 = 600.0;
 
 pub struct CameraDollyPlugin;
@@ -7,7 +9,15 @@ pub struct CameraDollyPlugin;
 impl Plugin for CameraDollyPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, setup)
-            .add_systems(Update, move_camera);
+            .add_systems(
+                Update,
+                move_camera.run_if(in_state(RacingState::Commanding)),
+            )
+            .add_systems(
+                Update,
+                follow_player.run_if(in_state(RacingState::Simulating)),
+            )
+            .add_systems(OnEnter(PlayingState::Racing), follow_player);
     }
 }
 
@@ -55,5 +65,17 @@ fn move_camera(
 
     for mut transform in q_camera.iter_mut() {
         transform.translation += camera_movement;
+    }
+}
+
+fn follow_player(
+    mut q_camera: Query<&mut Transform, (With<Camera2d>, Without<Player>)>,
+    q_bike: Query<&Transform, With<Player>>,
+) {
+    if let Ok(player_pos) = q_bike.get_single() {
+        let ideal_camera_pos = Vec3::ZERO.lerp(player_pos.translation, 0.7);
+        for mut camera_transform in q_camera.iter_mut() {
+            camera_transform.translation = ideal_camera_pos;
+        }
     }
 }
