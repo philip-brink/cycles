@@ -31,6 +31,7 @@ impl FromWorld for TrackTexture {
 pub struct BikeTextures {
     pub straight: Handle<Image>,
     pub turn: Handle<Image>,
+    pub turn_extreme: Handle<Image>,
 }
 
 impl FromWorld for BikeTextures {
@@ -38,6 +39,7 @@ impl FromWorld for BikeTextures {
         Self {
             straight: world.load_asset("images/bike/bike_straight.png"),
             turn: world.load_asset("images/bike/bike_turn.png"),
+            turn_extreme: world.load_asset("images/bike/bike_turn_extreme.png"),
         }
     }
 }

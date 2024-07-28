@@ -20,7 +20,9 @@ impl Plugin for BikePlugin {
         )
         .add_systems(
             Update,
-            (update_bikes).run_if(in_state(RacingState::Simulating)),
+            (try_action, update_bikes)
+                .chain()
+                .run_if(in_state(RacingState::Simulating)),
         )
         .add_systems(OnEnter(RacingState::Commanding), on_enter_commanding_state)
         .add_systems(OnExit(RacingState::Simulating), on_exit_simulating_state);
@@ -55,27 +57,14 @@ enum BikeTurning {
     Right,
 }
 
-fn update_bikes(
-    mut q_bike: Query<(
-        Entity,
-        &mut Bike,
-        &mut Transform,
-        Option<&BikeTurning>,
-        Option<&BikeAction>,
-    )>,
-    time: Res<Time>,
-    turn_timer: Res<TurnTimer>,
-    lanes: Res<TrackLanes>,
-    mut commands: Commands,
-) {
-    for (entity, mut bike, mut transform, maybe_turning, maybe_action) in q_bike.iter_mut() {
+fn try_action(mut q_bikes: Query<(&mut Bike, Option<&BikeAction>)>, turn_timer: Res<TurnTimer>) {
+    for (mut bike, maybe_action) in q_bikes.iter_mut() {
         if let Some(action) = maybe_action {
             match action {
                 BikeAction::Accelerate => {
-                    let accel_factor = turn_timer.proportion_finished();
-                    println!("ACCEL FACTOR: {accel_factor}");
-                    bike.speed =
-                        (bike.speed + bike.acceleration * accel_factor).min(bike.max_speed);
+                    bike.speed = (bike.speed
+                        + (bike.acceleration * turn_timer.proportion_finished()))
+                    .min(bike.max_speed);
                     println!("BIKE SPEED: {}", bike.speed);
                 }
                 BikeAction::Watch => {}
@@ -91,6 +80,23 @@ fn update_bikes(
                 BikeAction::RightHip => todo!(),
             }
         }
+    }
+}
+
+fn update_bikes(
+    mut q_bike: Query<(
+        Entity,
+        &mut Bike,
+        &mut Transform,
+        Option<&BikeTurning>,
+        Option<&BikeAction>,
+    )>,
+    time: Res<Time>,
+    turn_timer: Res<TurnTimer>,
+    lanes: Res<TrackLanes>,
+    mut commands: Commands,
+) {
+    for (entity, mut bike, mut transform, maybe_turning, maybe_action) in q_bike.iter_mut() {
         let current_lane = lanes.track_lane(&bike.current_lane_id);
         bike.distance += bike.speed * time.delta_seconds();
         let (pos, rot) = current_lane.position_and_rotation(bike.distance);
