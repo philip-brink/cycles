@@ -90,7 +90,7 @@ fn setup_bikes(
     let player_lane_index = rng.gen_range(0..lanes.len());
     for (index, lane_id) in lanes.iter().enumerate() {
         let lane = track_lanes.track_lane(lane_id);
-        let bike = Bike::new(lane_id, 900.0, 0.5, 16.0);
+        let bike = Bike::new(lane_id, 900.0, 0.5, 450.0);
         let (position, _) = lane.position_and_rotation(bike.distance);
         let entity = commands
             .spawn((

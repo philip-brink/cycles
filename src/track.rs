@@ -45,6 +45,27 @@ impl Default for TrackLanes {
     }
 }
 
+impl TrackLanes {
+    pub fn pos_and_rot_between_lanes(
+        &self,
+        lane_id_1: TrackLaneId,
+        lane_id_2: TrackLaneId,
+        distance: f32,
+        proportion: f32,
+    ) -> (Vec2, Quat) {
+        let lane_1 = self.track_lane(&lane_id_1);
+        let (pos_1, rot_1) = lane_1.position_and_rotation(distance);
+        if lane_id_1 == lane_id_2 {
+            return (pos_1, rot_1);
+        }
+        let lane_2 = self.track_lane(&lane_id_2);
+        let (pos_2, rot_2) = lane_2.position_and_rotation(distance);
+        let pos_lerp = pos_1.lerp(pos_2, proportion);
+        let rot_lerp = rot_1.lerp(rot_2, proportion);
+        (pos_lerp, rot_lerp)
+    }
+}
+
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub enum TrackLaneId {
     /// Inner track
@@ -67,6 +88,42 @@ impl TrackLaneId {
             TrackLaneId::Fourth => 3,
         };
         (LANE_WIDTH / 2.0) + (LANE_WIDTH * factor as f32)
+    }
+
+    pub fn left(&self) -> TrackLaneId {
+        match self {
+            TrackLaneId::First => TrackLaneId::First,
+            TrackLaneId::Second => TrackLaneId::First,
+            TrackLaneId::Third => TrackLaneId::Second,
+            TrackLaneId::Fourth => TrackLaneId::Third,
+        }
+    }
+
+    pub fn left_left(&self) -> TrackLaneId {
+        self.left().left()
+    }
+
+    pub fn right(&self) -> TrackLaneId {
+        match self {
+            TrackLaneId::First => TrackLaneId::Second,
+            TrackLaneId::Second => TrackLaneId::Third,
+            TrackLaneId::Third => TrackLaneId::Fourth,
+            TrackLaneId::Fourth => TrackLaneId::Fourth,
+        }
+    }
+
+    pub fn right_right(&self) -> TrackLaneId {
+        self.right().right()
+    }
+
+    pub fn between(&self, other: TrackLaneId) -> TrackLaneId {
+        let self_index = *self as u8;
+        let other_index = other as u8;
+        if other_index > self_index {
+            self.right()
+        } else {
+            self.left()
+        }
     }
 }
 

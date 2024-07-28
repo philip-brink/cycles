@@ -20,7 +20,7 @@ impl Plugin for BikePlugin {
         )
         .add_systems(
             Update,
-            (try_action, update_bikes)
+            (try_action, change_speed, move_bikes)
                 .chain()
                 .run_if(in_state(RacingState::Simulating)),
         )
@@ -57,25 +57,61 @@ enum BikeTurning {
     Right,
 }
 
-fn try_action(mut q_bikes: Query<(&mut Bike, Option<&BikeAction>)>, turn_timer: Res<TurnTimer>) {
-    for (mut bike, maybe_action) in q_bikes.iter_mut() {
+fn try_action(
+    q_bikes: Query<(Entity, &Bike, Option<&BikeAction>, Option<&ChangeSpeed>)>,
+    mut commands: Commands,
+) {
+    for (entity, bike, maybe_action, maybe_change_speed) in q_bikes.iter() {
         if let Some(action) = maybe_action {
             match action {
                 BikeAction::Accelerate => {
-                    bike.speed = (bike.speed
-                        + (bike.acceleration * turn_timer.proportion_finished()))
-                    .min(bike.max_speed);
-                    println!("BIKE SPEED: {}", bike.speed);
+                    if maybe_change_speed.is_none() {
+                        commands.entity(entity).insert(ChangeSpeed {
+                            start_speed: bike.speed,
+                            final_speed: (bike.speed + bike.acceleration).min(bike.max_speed),
+                        });
+                    }
                 }
                 BikeAction::Watch => {}
                 BikeAction::Skid => todo!(),
-                BikeAction::Stop => bike.speed = 0.0,
-                BikeAction::Left => todo!(),
-                BikeAction::LeftLeft => todo!(),
+                BikeAction::Stop => {
+                    if maybe_change_speed.is_none() {
+                        commands.entity(entity).insert(ChangeSpeed {
+                            start_speed: bike.speed,
+                            final_speed: 0.0,
+                        });
+                    }
+                }
+                BikeAction::Left => {
+                    commands.entity(entity).insert(ChangeLane::new(
+                        bike.current_lane_id,
+                        bike.current_lane_id.left(),
+                        false,
+                    ));
+                }
+                BikeAction::LeftLeft => {
+                    commands.entity(entity).insert(ChangeLane::new(
+                        bike.current_lane_id,
+                        bike.current_lane_id.left_left(),
+                        true,
+                    ));
+                }
                 BikeAction::LeftElbow => todo!(),
                 BikeAction::LeftHip => todo!(),
-                BikeAction::Right => todo!(),
-                BikeAction::RightRight => todo!(),
+                BikeAction::Right => {
+                    commands.entity(entity).insert(ChangeLane::new(
+                        bike.current_lane_id,
+                        bike.current_lane_id.right(),
+                        false,
+                    ));
+                }
+                BikeAction::RightRight => {
+                    commands.entity(entity).insert(ChangeLane::new(
+                        bike.current_lane_id,
+                        bike.current_lane_id.right_right(),
+                        true,
+                    ));
+                }
                 BikeAction::RightElbow => todo!(),
                 BikeAction::RightHip => todo!(),
             }
@@ -83,23 +119,98 @@ fn try_action(mut q_bikes: Query<(&mut Bike, Option<&BikeAction>)>, turn_timer: 
     }
 }
 
-fn update_bikes(
+fn change_speed(mut q_bikes: Query<(&mut Bike, &ChangeSpeed)>, turn_timer: Res<TurnTimer>) {
+    // TODO: Only increase speed if no collision in front
+    for (mut bike, change_speed) in q_bikes.iter_mut() {
+        bike.speed = change_speed.current_speed(turn_timer.proportion_finished());
+    }
+}
+
+#[derive(Component, Debug, Clone, Copy)]
+struct ChangeSpeed {
+    start_speed: f32,
+    final_speed: f32,
+}
+
+impl ChangeSpeed {
+    fn current_speed(self, turn_proportion_elapsed: f32) -> f32 {
+        self.start_speed + (self.final_speed - self.start_speed) * turn_proportion_elapsed
+    }
+}
+
+#[derive(Component, Debug, Clone, Copy)]
+struct ChangeLane {
+    start_lane_id: TrackLaneId,
+    final_lane_id: TrackLaneId,
+    double_lane_change: bool,
+    current_proportion: f32,
+}
+
+impl ChangeLane {
+    fn new(current: TrackLaneId, desired: TrackLaneId, double_lane_change: bool) -> Self {
+        Self {
+            start_lane_id: current,
+            final_lane_id: desired,
+            double_lane_change,
+            current_proportion: 0.0,
+        }
+    }
+    fn update_proportion(&mut self, turn_proportion_elapsed: f32, lane_clear: bool) {
+        if lane_clear {
+            self.current_proportion = self.current_proportion.lerp(1.0, turn_proportion_elapsed);
+        } else if turn_proportion_elapsed >= 0.75 {
+            self.current_proportion = 1.0.lerp(self.current_proportion, turn_proportion_elapsed);
+        }
+    }
+    fn final_lane(&self) -> TrackLaneId {
+        if self.double_lane_change {
+            if self.current_proportion < 0.25 {
+                return self.start_lane_id;
+            } else if self.current_proportion > 0.75 {
+                return self.final_lane_id;
+            } else {
+                return self.start_lane_id.between(self.final_lane_id);
+            }
+        } else if self.current_proportion < 0.5 {
+            return self.start_lane_id;
+        } else {
+            return self.final_lane_id;
+        }
+    }
+}
+
+fn move_bikes(
     mut q_bike: Query<(
         Entity,
         &mut Bike,
         &mut Transform,
         Option<&BikeTurning>,
-        Option<&BikeAction>,
+        Option<&mut ChangeLane>,
     )>,
     time: Res<Time>,
     turn_timer: Res<TurnTimer>,
     lanes: Res<TrackLanes>,
     mut commands: Commands,
 ) {
-    for (entity, mut bike, mut transform, maybe_turning, maybe_action) in q_bike.iter_mut() {
-        let current_lane = lanes.track_lane(&bike.current_lane_id);
+    for (entity, mut bike, mut transform, maybe_turning, maybe_changing_lane) in q_bike.iter_mut() {
         bike.distance += bike.speed * time.delta_seconds();
-        let (pos, rot) = current_lane.position_and_rotation(bike.distance);
+        let (pos, rot) = match maybe_changing_lane {
+            Some(mut change_lane) => {
+                change_lane.update_proportion(turn_timer.proportion_finished(), true);
+                lanes.pos_and_rot_between_lanes(
+                    change_lane.start_lane_id,
+                    change_lane.final_lane_id,
+                    bike.distance,
+                    change_lane.current_proportion,
+                )
+            }
+            None => lanes.pos_and_rot_between_lanes(
+                bike.current_lane_id,
+                bike.current_lane_id,
+                bike.distance,
+                0.0,
+            ),
+        };
         transform.translation = pos.extend(5.0);
         let turning = (transform.rotation - rot).length_squared() > TURNING_THRESHOLD;
         transform.rotation = rot;
@@ -136,15 +247,19 @@ fn on_turning_removed(
 }
 
 fn on_exit_simulating_state(
-    mut q_bikes: Query<&mut Bike>,
+    mut q_bikes: Query<(Entity, &mut Bike, Option<&ChangeLane>)>,
     q_actions: Query<Entity, With<BikeAction>>,
     mut commands: Commands,
 ) {
-    for mut bike in q_bikes.iter_mut() {
-        //
+    for (entity, mut bike, maybe_change_lane) in q_bikes.iter_mut() {
+        if let Some(change_lane) = maybe_change_lane {
+            bike.current_lane_id = change_lane.final_lane();
+            commands.entity(entity).remove::<ChangeLane>();
+        }
     }
     for entity in &q_actions {
         commands.entity(entity).remove::<BikeAction>();
+        commands.entity(entity).remove::<ChangeSpeed>();
     }
 }
 
