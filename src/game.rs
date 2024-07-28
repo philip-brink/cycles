@@ -1,10 +1,9 @@
-use std::time::Duration;
-
 use bevy::{prelude::*, time::Stopwatch};
 use rand::Rng;
 
 use crate::{
     bike::Bike,
+    collision::Collider,
     loading::{BikeTextures, TrackTexture},
     opponent::Opponent,
     player::Player,
@@ -90,7 +89,7 @@ fn setup_bikes(
     let player_lane_index = rng.gen_range(0..lanes.len());
     for (index, lane_id) in lanes.iter().enumerate() {
         let lane = track_lanes.track_lane(lane_id);
-        let bike = Bike::new(lane_id, 900.0, 0.5, 450.0);
+        let bike = Bike::new(lane_id, 1400.0, 0.5, 800.0);
         let (position, _) = lane.position_and_rotation(bike.distance);
         let entity = commands
             .spawn((
@@ -103,6 +102,7 @@ fn setup_bikes(
                     },
                     ..default()
                 },
+                Collider::new(100.0, 200.0),
             ))
             .id();
         if player_lane_index == index {

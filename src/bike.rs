@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use crate::{
     actions::BikeAction,
+    collision::{self, Collision},
     game::TurnTimer,
     loading::BikeTextures,
     track::{TrackLaneId, TrackLanes},
@@ -20,7 +21,7 @@ impl Plugin for BikePlugin {
         )
         .add_systems(
             Update,
-            (try_action, change_speed, move_bikes)
+            (try_action, change_speed, move_bikes, on_collision)
                 .chain()
                 .run_if(in_state(RacingState::Simulating)),
         )
@@ -86,14 +87,12 @@ fn try_action(
                     commands.entity(entity).insert(ChangeLane::new(
                         bike.current_lane_id,
                         bike.current_lane_id.left(),
-                        false,
                     ));
                 }
                 BikeAction::LeftLeft => {
                     commands.entity(entity).insert(ChangeLane::new(
                         bike.current_lane_id,
                         bike.current_lane_id.left_left(),
-                        true,
                     ));
                 }
                 BikeAction::LeftElbow => todo!(),
@@ -102,14 +101,12 @@ fn try_action(
                     commands.entity(entity).insert(ChangeLane::new(
                         bike.current_lane_id,
                         bike.current_lane_id.right(),
-                        false,
                     ));
                 }
                 BikeAction::RightRight => {
                     commands.entity(entity).insert(ChangeLane::new(
                         bike.current_lane_id,
                         bike.current_lane_id.right_right(),
-                        true,
                     ));
                 }
                 BikeAction::RightElbow => todo!(),
@@ -144,19 +141,24 @@ struct ChangeLane {
     final_lane_id: TrackLaneId,
     double_lane_change: bool,
     current_proportion: f32,
+    lane_clear: bool,
+    changing_to_right: bool,
 }
 
 impl ChangeLane {
-    fn new(current: TrackLaneId, desired: TrackLaneId, double_lane_change: bool) -> Self {
+    fn new(current: TrackLaneId, desired: TrackLaneId) -> Self {
+        let double_lane_change = current.difference(desired) > 1;
         Self {
             start_lane_id: current,
             final_lane_id: desired,
             double_lane_change,
             current_proportion: 0.0,
+            lane_clear: true,
+            changing_to_right: current.is_to_right_of(desired),
         }
     }
-    fn update_proportion(&mut self, turn_proportion_elapsed: f32, lane_clear: bool) {
-        if lane_clear {
+    fn update_proportion(&mut self, turn_proportion_elapsed: f32) {
+        if self.lane_clear {
             self.current_proportion = self.current_proportion.lerp(1.0, turn_proportion_elapsed);
         } else if turn_proportion_elapsed >= 0.75 {
             self.current_proportion = 1.0.lerp(self.current_proportion, turn_proportion_elapsed);
@@ -165,7 +167,7 @@ impl ChangeLane {
     fn final_lane(&self) -> TrackLaneId {
         if self.double_lane_change {
             if self.current_proportion < 0.25 {
-                return self.start_lane_id;
+                self.start_lane_id
             } else if self.current_proportion > 0.75 {
                 return self.final_lane_id;
             } else {
@@ -196,7 +198,7 @@ fn move_bikes(
         bike.distance += bike.speed * time.delta_seconds();
         let (pos, rot) = match maybe_changing_lane {
             Some(mut change_lane) => {
-                change_lane.update_proportion(turn_timer.proportion_finished(), true);
+                change_lane.update_proportion(turn_timer.proportion_finished());
                 lanes.pos_and_rot_between_lanes(
                     change_lane.start_lane_id,
                     change_lane.final_lane_id,
@@ -218,6 +220,40 @@ fn move_bikes(
             commands.entity(entity).insert(BikeTurning::Left);
         } else if !turning && maybe_turning.is_some() {
             commands.entity(entity).remove::<BikeTurning>();
+        }
+    }
+}
+
+fn on_collision(mut q_bike_collisions: Query<(&mut Bike, &Collision, Option<&mut ChangeLane>)>) {
+    for (mut bike, collision, maybe_change_lane) in q_bike_collisions.iter_mut() {
+        match collision.side {
+            collision::CollisionSide::Front => {
+                // slow down to other bike's speed
+                let speed_difference = (bike.speed - collision.other_bike_speed).abs();
+                if speed_difference > 10.0 {
+                    println!("CRASH!!!");
+                }
+                bike.speed = collision.other_bike_speed;
+            }
+            collision::CollisionSide::Left => {
+                if let Some(mut change_lane) = maybe_change_lane {
+                    if !change_lane.changing_to_right {
+                        println!("Blocked!");
+                        change_lane.lane_clear = false;
+                    }
+                }
+            }
+            collision::CollisionSide::Right => {
+                if let Some(mut change_lane) = maybe_change_lane {
+                    if change_lane.changing_to_right {
+                        println!("Blocked!");
+                        change_lane.lane_clear = false;
+                    }
+                }
+            }
+            collision::CollisionSide::Back => {
+                // do nothing
+            }
         }
     }
 }

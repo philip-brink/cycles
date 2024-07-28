@@ -125,6 +125,18 @@ impl TrackLaneId {
             self.left()
         }
     }
+
+    pub fn difference(&self, other: TrackLaneId) -> i32 {
+        let self_index = *self as i32;
+        let other_index = other as i32;
+        self_index - other_index
+    }
+
+    pub fn is_to_right_of(&self, other: TrackLaneId) -> bool {
+        let self_index = *self as i32;
+        let other_index = other as i32;
+        self_index - other_index > 0
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
