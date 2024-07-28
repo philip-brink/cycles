@@ -1,4 +1,6 @@
-use bevy::prelude::*;
+use std::time::Duration;
+
+use bevy::{prelude::*, time::Stopwatch};
 use rand::Rng;
 
 use crate::{
@@ -7,19 +9,63 @@ use crate::{
     opponent::Opponent,
     player::Player,
     track::{TrackLaneId, TrackLanes},
-    PlayingState,
+    PlayingState, RacingState,
 };
 
 pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            OnEnter(PlayingState::SetupRace),
-            (setup_track, setup_bikes).before(set_playing_state),
-        )
-        .add_systems(OnEnter(PlayingState::SetupRace), set_playing_state);
+        app.init_resource::<TurnTimer>()
+            .add_systems(
+                OnEnter(PlayingState::SetupRace),
+                (setup_track, setup_bikes).before(set_playing_state),
+            )
+            .add_systems(OnEnter(PlayingState::SetupRace), set_playing_state)
+            .add_systems(
+                Update,
+                tick_turn_timer.run_if(in_state(RacingState::Simulating)),
+            )
+            .add_systems(OnEnter(RacingState::Simulating), reset_timer);
     }
+}
+
+#[derive(Resource)]
+pub struct TurnTimer {
+    timer: Timer,
+    stopwatch: Stopwatch,
+}
+
+impl TurnTimer {
+    pub fn proportion_finished(&self) -> f32 {
+        self.stopwatch.elapsed_secs() / self.timer.duration().as_secs_f32()
+    }
+}
+
+impl Default for TurnTimer {
+    fn default() -> Self {
+        Self {
+            timer: Timer::from_seconds(1.0, TimerMode::Once),
+            stopwatch: Stopwatch::new(),
+        }
+    }
+}
+
+fn tick_turn_timer(
+    mut turn_timer: ResMut<TurnTimer>,
+    time: Res<Time>,
+    mut next_state: ResMut<NextState<RacingState>>,
+) {
+    turn_timer.timer.tick(time.delta());
+    turn_timer.stopwatch.tick(time.delta());
+    if turn_timer.timer.finished() {
+        next_state.set(RacingState::Commanding);
+    }
+}
+
+fn reset_timer(mut turn_timer: ResMut<TurnTimer>) {
+    turn_timer.timer.reset();
+    turn_timer.stopwatch.reset();
 }
 
 fn setup_track(mut commands: Commands, track_texture: Res<TrackTexture>) {
@@ -44,7 +90,7 @@ fn setup_bikes(
     let player_lane_index = rng.gen_range(0..lanes.len());
     for (index, lane_id) in lanes.iter().enumerate() {
         let lane = track_lanes.track_lane(lane_id);
-        let bike = Bike::new(lane_id);
+        let bike = Bike::new(lane_id, 900.0, 0.5, 16.0);
         let (position, _) = lane.position_and_rotation(bike.distance);
         let entity = commands
             .spawn((

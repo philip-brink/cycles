@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 
 use crate::{
+    actions::BikeAction,
+    game::TurnTimer,
     loading::BikeTextures,
     track::{TrackLaneId, TrackLanes},
     PlayingState, RacingState,
@@ -21,28 +23,28 @@ impl Plugin for BikePlugin {
             (update_bikes).run_if(in_state(RacingState::Simulating)),
         )
         .add_systems(OnEnter(RacingState::Commanding), on_enter_commanding_state)
-        .add_systems(OnEnter(RacingState::Simulating), on_enter_simulating_state);
+        .add_systems(OnExit(RacingState::Simulating), on_exit_simulating_state);
     }
 }
 
-#[derive(Component, Debug, Clone, Copy)]
+#[derive(Component, Debug, Clone, Copy, Default)]
 pub struct Bike {
     pub current_lane_id: TrackLaneId,
-    pub desired_lane_id: TrackLaneId,
     pub distance: f32,
-    pub moving: bool,
-    speed: f32,
+    pub speed: f32,
+    pub max_speed: f32,
+    pub acceleration: f32,
+    pub grip: f32,
 }
 
 impl Bike {
-    pub fn new(initial_lane: &TrackLaneId) -> Self {
-        let distance = 0.0;
+    pub fn new(initial_lane: &TrackLaneId, max_speed: f32, grip: f32, acceleration: f32) -> Self {
         Self {
             current_lane_id: *initial_lane,
-            desired_lane_id: *initial_lane,
-            distance,
-            moving: false,
-            speed: 600.0,
+            max_speed,
+            acceleration,
+            grip,
+            ..Default::default()
         }
     }
 }
@@ -54,24 +56,51 @@ enum BikeTurning {
 }
 
 fn update_bikes(
-    mut q_bike: Query<(Entity, &mut Bike, &mut Transform, Option<&BikeTurning>)>,
+    mut q_bike: Query<(
+        Entity,
+        &mut Bike,
+        &mut Transform,
+        Option<&BikeTurning>,
+        Option<&BikeAction>,
+    )>,
     time: Res<Time>,
+    turn_timer: Res<TurnTimer>,
     lanes: Res<TrackLanes>,
     mut commands: Commands,
 ) {
-    for (entity, mut bike, mut transform, maybe_turning) in q_bike.iter_mut() {
-        if bike.moving {
-            let current_lane = lanes.track_lane(&bike.current_lane_id);
-            bike.distance += bike.speed * time.delta_seconds();
-            let (pos, rot) = current_lane.position_and_rotation(bike.distance);
-            transform.translation = pos.extend(5.0);
-            let turning = (transform.rotation - rot).length_squared() > TURNING_THRESHOLD;
-            transform.rotation = rot;
-            if turning && maybe_turning.is_none() {
-                commands.entity(entity).insert(BikeTurning::Left);
-            } else if !turning && maybe_turning.is_some() {
-                commands.entity(entity).remove::<BikeTurning>();
+    for (entity, mut bike, mut transform, maybe_turning, maybe_action) in q_bike.iter_mut() {
+        if let Some(action) = maybe_action {
+            match action {
+                BikeAction::Accelerate => {
+                    let accel_factor = turn_timer.proportion_finished();
+                    println!("ACCEL FACTOR: {accel_factor}");
+                    bike.speed =
+                        (bike.speed + bike.acceleration * accel_factor).min(bike.max_speed);
+                    println!("BIKE SPEED: {}", bike.speed);
+                }
+                BikeAction::Watch => {}
+                BikeAction::Skid => todo!(),
+                BikeAction::Stop => bike.speed = 0.0,
+                BikeAction::Left => todo!(),
+                BikeAction::LeftLeft => todo!(),
+                BikeAction::LeftElbow => todo!(),
+                BikeAction::LeftHip => todo!(),
+                BikeAction::Right => todo!(),
+                BikeAction::RightRight => todo!(),
+                BikeAction::RightElbow => todo!(),
+                BikeAction::RightHip => todo!(),
             }
+        }
+        let current_lane = lanes.track_lane(&bike.current_lane_id);
+        bike.distance += bike.speed * time.delta_seconds();
+        let (pos, rot) = current_lane.position_and_rotation(bike.distance);
+        transform.translation = pos.extend(5.0);
+        let turning = (transform.rotation - rot).length_squared() > TURNING_THRESHOLD;
+        transform.rotation = rot;
+        if turning && maybe_turning.is_none() {
+            commands.entity(entity).insert(BikeTurning::Left);
+        } else if !turning && maybe_turning.is_some() {
+            commands.entity(entity).remove::<BikeTurning>();
         }
     }
 }
@@ -100,14 +129,21 @@ fn on_turning_removed(
     }
 }
 
-fn on_enter_simulating_state(mut q_bikes: Query<&mut Bike>) {
+fn on_exit_simulating_state(
+    mut q_bikes: Query<&mut Bike>,
+    q_actions: Query<Entity, With<BikeAction>>,
+    mut commands: Commands,
+) {
     for mut bike in q_bikes.iter_mut() {
-        bike.moving = true;
+        //
+    }
+    for entity in &q_actions {
+        commands.entity(entity).remove::<BikeAction>();
     }
 }
 
 fn on_enter_commanding_state(mut q_bikes: Query<&mut Bike>) {
     for mut bike in q_bikes.iter_mut() {
-        bike.moving = false;
+        //
     }
 }

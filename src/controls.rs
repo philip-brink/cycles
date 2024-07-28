@@ -1,4 +1,3 @@
-mod actions;
 mod buttons;
 mod mouse;
 
@@ -7,6 +6,7 @@ use std::f32::consts::FRAC_PI_2;
 use bevy::prelude::*;
 
 use crate::{
+    actions::BikeAction,
     bike::Bike,
     loading::IconTextures,
     player::Player,
@@ -15,7 +15,6 @@ use crate::{
 };
 
 use self::{
-    actions::{ActionKind, ActionsPlugin},
     buttons::{make_button, ActionButton, ActionButtonsPlugin, ButtonRowPositions},
     mouse::MousePlugin,
 };
@@ -29,7 +28,6 @@ impl Plugin for ControlsPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(ActionButtonsPlugin)
             .add_plugins(MousePlugin)
-            .add_plugins(ActionsPlugin)
             .add_systems(OnEnter(RacingState::Commanding), on_enter_commanding_state)
             .add_systems(OnEnter(RacingState::Simulating), on_enter_simulating_state);
     }
@@ -46,82 +44,94 @@ fn on_enter_commanding_state(
         let track_lane = track_lanes.track_lane(&bike.current_lane_id);
         let row_0 = button_row_positions(bike_distance, track_lane, 0);
         commands.spawn(make_button(
-            ActionKind::LeftHip,
+            BikeAction::LeftHip,
             row_0.left,
             row_0.rotation,
             &icon_textures,
+            BikeAction::LeftHip.can_do(bike),
         ));
         commands.spawn(make_button(
-            ActionKind::Stop,
+            BikeAction::Stop,
             row_0.middle,
             row_0.rotation,
             &icon_textures,
+            BikeAction::Stop.can_do(bike),
         ));
         commands.spawn(make_button(
-            ActionKind::RightHip,
+            BikeAction::RightHip,
             row_0.right,
             row_0.rotation,
             &icon_textures,
+            BikeAction::RightHip.can_do(bike),
         ));
 
         let row_1 = button_row_positions(bike_distance, track_lane, 1);
         commands.spawn(make_button(
-            ActionKind::LeftElbow,
+            BikeAction::LeftElbow,
             row_1.left,
             row_1.rotation,
             &icon_textures,
+            BikeAction::LeftElbow.can_do(bike),
         ));
         commands.spawn(make_button(
-            ActionKind::Skid,
+            BikeAction::Skid,
             row_1.middle,
             row_1.rotation,
             &icon_textures,
+            BikeAction::Skid.can_do(bike),
         ));
         commands.spawn(make_button(
-            ActionKind::RightElbow,
+            BikeAction::RightElbow,
             row_1.right,
             row_1.rotation,
             &icon_textures,
+            BikeAction::RightElbow.can_do(bike),
         ));
 
         let row_2 = button_row_positions(bike_distance, track_lane, 2);
         commands.spawn(make_button(
-            ActionKind::LeftLeft,
+            BikeAction::LeftLeft,
             row_2.left,
             row_2.rotation,
             &icon_textures,
+            BikeAction::LeftLeft.can_do(bike),
         ));
         commands.spawn(make_button(
-            ActionKind::Watch,
+            BikeAction::Watch,
             row_2.middle,
             row_2.rotation,
             &icon_textures,
+            BikeAction::Watch.can_do(bike),
         ));
         commands.spawn(make_button(
-            ActionKind::RightRight,
+            BikeAction::RightRight,
             row_2.right,
             row_2.rotation,
             &icon_textures,
+            BikeAction::RightRight.can_do(bike),
         ));
 
         let row_3 = button_row_positions(bike_distance, track_lane, 3);
         commands.spawn(make_button(
-            ActionKind::Left,
+            BikeAction::Left,
             row_3.left,
             row_3.rotation,
             &icon_textures,
+            BikeAction::Left.can_do(bike),
         ));
         commands.spawn(make_button(
-            ActionKind::Accelerate,
+            BikeAction::Accelerate,
             row_3.middle,
             row_3.rotation,
             &icon_textures,
+            BikeAction::Accelerate.can_do(bike),
         ));
         commands.spawn(make_button(
-            ActionKind::Right,
+            BikeAction::Right,
             row_3.right,
             row_3.rotation,
             &icon_textures,
+            BikeAction::Right.can_do(bike),
         ));
     }
 }

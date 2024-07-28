@@ -4,6 +4,7 @@
 // Feel free to delete this line.
 #![allow(clippy::too_many_arguments, clippy::type_complexity)]
 
+mod actions;
 mod bike;
 mod camera;
 mod controls;
@@ -16,6 +17,7 @@ mod player;
 mod race;
 mod track;
 
+use actions::ActionsPlugin;
 use bevy::asset::AssetMetaCheck;
 use bevy::prelude::*;
 use bike::BikePlugin;
@@ -72,6 +74,7 @@ fn main() {
             CameraDollyPlugin,
             TrackPlugin,
             BikePlugin,
+            ActionsPlugin,
             PlayerPlugin,
             ControlsPlugin,
             RacePlugin,

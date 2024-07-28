@@ -8,8 +8,6 @@ use bevy_prototype_lyon::{
 
 use crate::{bike::Bike, player::Player, track::TrackLanes, RacingState};
 
-const PATH_LENGTH: f32 = 750.0;
-
 pub struct PathHighlightPlugin;
 
 impl Plugin for PathHighlightPlugin {
@@ -34,8 +32,9 @@ fn show_path_highlight(
         let mut path_builder = PathBuilder::new();
         path_builder.move_to(pos);
         let mut current_path_length = 0.0;
-        while current_path_length < PATH_LENGTH {
-            let path_length_remaining = PATH_LENGTH - current_path_length;
+        let path_length = bike.speed;
+        while current_path_length < path_length {
+            let path_length_remaining = path_length - current_path_length;
             let path_marker = bike.distance + current_path_length;
             let section_end_distance = lane.distance_to_end_of_track_section(path_marker);
             let path_section_end_distance = section_end_distance.min(path_length_remaining);

@@ -1,11 +1,13 @@
 use bevy::prelude::*;
 
-use crate::{loading::IconTextures, RacingState};
-
-use super::{
-    actions::{ActionEvent, ActionKind},
-    mouse::MouseWorldCoords,
+use crate::{
+    actions::{ActionEvent, BikeAction},
+    loading::IconTextures,
+    player::Player,
+    RacingState,
 };
+
+use super::mouse::MouseWorldCoords;
 
 const MOUSE_TO_BUTTON_DIST: f32 = 1000.0;
 const BUTTON_SIZE: f32 = 60.0;
@@ -28,16 +30,19 @@ impl Plugin for ActionButtonsPlugin {
 fn detect_mouse_over_buttons(
     mut commands: Commands,
     mouse_world_coords: Res<MouseWorldCoords>,
-    q_buttons: Query<(Entity, &Transform, Option<&MouseOver>), With<ActionButton>>,
+    q_buttons: Query<(Entity, &Transform, &ActionButton, Option<&MouseOver>)>,
 ) {
-    for (entity, transform, maybe_mouse_over) in q_buttons.iter() {
-        let dist_to_button = (mouse_world_coords.0 - transform.translation.xy()).length_squared();
-        if dist_to_button < MOUSE_TO_BUTTON_DIST {
-            if maybe_mouse_over.is_none() {
-                commands.entity(entity).insert(MouseOver);
+    for (entity, transform, action_button, maybe_mouse_over) in q_buttons.iter() {
+        if action_button.enabled {
+            let dist_to_button =
+                (mouse_world_coords.0 - transform.translation.xy()).length_squared();
+            if dist_to_button < MOUSE_TO_BUTTON_DIST {
+                if maybe_mouse_over.is_none() {
+                    commands.entity(entity).insert(MouseOver);
+                }
+            } else if maybe_mouse_over.is_some() {
+                commands.entity(entity).remove::<MouseOver>();
             }
-        } else if maybe_mouse_over.is_some() {
-            commands.entity(entity).remove::<MouseOver>();
         }
     }
 }
@@ -80,12 +85,15 @@ fn on_mouse_over_removed(
 
 fn on_mouse_clicked(
     mut action_event: EventWriter<ActionEvent>,
-    q_buttons: Query<&ActionKind, With<MouseOver>>,
+    q_buttons: Query<&BikeAction, With<MouseOver>>,
     buttons: Res<ButtonInput<MouseButton>>,
+    q_player: Query<Entity, With<Player>>,
 ) {
     if buttons.just_released(MouseButton::Left) {
         for action_kind in &q_buttons {
-            action_event.send(ActionEvent(*action_kind));
+            for player in &q_player {
+                action_event.send(ActionEvent::new(player, *action_kind));
+            }
         }
     }
 }
@@ -93,12 +101,14 @@ fn on_mouse_clicked(
 #[derive(Bundle)]
 pub struct ActionButtonBundle {
     pub action_button: ActionButton,
-    pub kind: ActionKind,
+    pub kind: BikeAction,
     pub sprite: SpriteBundle,
 }
 
 #[derive(Component, Copy, Clone, PartialEq, Eq, Debug)]
-pub struct ActionButton;
+pub struct ActionButton {
+    enabled: bool,
+}
 
 #[derive(Component, Copy, Clone, PartialEq, Eq, Debug)]
 pub struct MouseOver;
@@ -114,27 +124,29 @@ pub struct ButtonRowPositions {
 }
 
 pub fn make_button(
-    action_kind: ActionKind,
+    action_kind: BikeAction,
     position: Vec3,
     rotation: Quat,
     icon_textures: &IconTextures,
+    enabled: bool,
 ) -> ActionButtonBundle {
     let texture = match action_kind {
-        ActionKind::Accelerate => icon_textures.accelerate.clone(),
-        ActionKind::Watch => icon_textures.watch.clone(),
-        ActionKind::Skid => icon_textures.skid.clone(),
-        ActionKind::Stop => icon_textures.stop.clone(),
-        ActionKind::Left => icon_textures.left.clone(),
-        ActionKind::LeftLeft => icon_textures.left_left.clone(),
-        ActionKind::LeftElbow => icon_textures.left_elbow.clone(),
-        ActionKind::LeftHip => icon_textures.left_hip.clone(),
-        ActionKind::Right => icon_textures.right.clone(),
-        ActionKind::RightRight => icon_textures.right_right.clone(),
-        ActionKind::RightElbow => icon_textures.right_elbow.clone(),
-        ActionKind::RightHip => icon_textures.right_hip.clone(),
+        BikeAction::Accelerate => icon_textures.accelerate.clone(),
+        BikeAction::Watch => icon_textures.watch.clone(),
+        BikeAction::Skid => icon_textures.skid.clone(),
+        BikeAction::Stop => icon_textures.stop.clone(),
+        BikeAction::Left => icon_textures.left.clone(),
+        BikeAction::LeftLeft => icon_textures.left_left.clone(),
+        BikeAction::LeftElbow => icon_textures.left_elbow.clone(),
+        BikeAction::LeftHip => icon_textures.left_hip.clone(),
+        BikeAction::Right => icon_textures.right.clone(),
+        BikeAction::RightRight => icon_textures.right_right.clone(),
+        BikeAction::RightElbow => icon_textures.right_elbow.clone(),
+        BikeAction::RightHip => icon_textures.right_hip.clone(),
     };
+    let sprite_alpha = if enabled { 1.0 } else { 0.3 };
     ActionButtonBundle {
-        action_button: ActionButton,
+        action_button: ActionButton { enabled },
         kind: action_kind,
         sprite: SpriteBundle {
             transform: Transform {
@@ -143,6 +155,10 @@ pub fn make_button(
                 scale: Vec3::splat(1.0),
             },
             texture,
+            sprite: Sprite {
+                color: Color::Srgba(Srgba::new(1.0, 1.0, 1.0, sprite_alpha)),
+                ..default()
+            },
             ..default()
         },
     }
