@@ -59,10 +59,37 @@ impl TrackLanes {
             return (pos_1, rot_1);
         }
         let lane_2 = self.track_lane(&lane_id_2);
-        let (pos_2, rot_2) = lane_2.position_and_rotation(distance);
+        let lane_2_distance = self.distance_on_adjacent_lane(lane_id_1, lane_id_2, distance);
+        let (pos_2, rot_2) = lane_2.position_and_rotation(lane_2_distance);
         let pos_lerp = pos_1.lerp(pos_2, proportion);
         let rot_lerp = rot_1.lerp(rot_2, proportion);
         (pos_lerp, rot_lerp)
+    }
+
+    // TODO: The problem is that going from one lane's distance to another lane's distance
+    // is wildly different, ESPECIALLY as the race goes on and more laps are finished, as
+    // it compounds over time. I need to have the distance automatically adjusted so that
+    // if I switch from an inner lane to an outer lane, it won't result in the bike slowing
+    // down or even going backwards. Likewise when going inwards, the bike will jump forward
+    pub fn distance_on_adjacent_lane(
+        &self,
+        lane_id_1: TrackLaneId,
+        lane_id_2: TrackLaneId,
+        distance: f32,
+    ) -> f32 {
+        let lane_1 = self.track_lane(&lane_id_1);
+        let num_laps_completed = lane_1.laps_finished(distance);
+        let current_lap_distance = lane_1.current_lap_distance(distance);
+        let track_section = lane_1.in_track_section(current_lap_distance);
+        let track_section_total_distance = lane_1.track_section_total_distance(&track_section);
+        let track_section_remaining_distance =
+            lane_1.distance_to_end_of_track_section(current_lap_distance);
+        let track_section_proportion =
+            1.0 - track_section_remaining_distance / track_section_total_distance;
+        let lane_2 = self.track_lane(&lane_id_2);
+        let lane_2_current_lap_distance = lane_2
+            .lap_distance_at_track_section_proportion(&track_section, track_section_proportion);
+        (lane_2.lap_distance * num_laps_completed as f32) + lane_2_current_lap_distance
     }
 }
 
@@ -208,6 +235,24 @@ impl TrackLane {
         }
     }
 
+    pub fn track_section_total_distance(&self, track_section: &TrackSection) -> f32 {
+        match track_section {
+            TrackSection::FirstStraightawayAfterFinishLine => {
+                self.first_straightaway_after_finish_line_dist
+            }
+            TrackSection::FirstTurn => {
+                self.first_turn_dist - self.first_straightaway_after_finish_line_dist
+            }
+            TrackSection::SecondStraightaway => {
+                self.second_straightaway_dist - self.first_turn_dist
+            }
+            TrackSection::SecondTurn => self.second_turn_dist - self.second_straightaway_dist,
+            TrackSection::FirstStraightawayBeforeFinishLine => {
+                self.lap_distance - self.second_turn_dist
+            }
+        }
+    }
+
     pub fn in_turn(&self, distance: f32) -> bool {
         matches!(
             self.in_track_section(distance),
@@ -235,6 +280,16 @@ impl TrackLane {
             TrackSection::SecondTurn => self.second_straightaway_dist,
             TrackSection::FirstStraightawayBeforeFinishLine => self.second_turn_dist,
         }
+    }
+
+    pub fn lap_distance_at_track_section_proportion(
+        &self,
+        track_section: &TrackSection,
+        proportion: f32,
+    ) -> f32 {
+        let initial_dist = self.track_section_start_distance(track_section);
+        let section_dist = self.track_section_total_distance(track_section) * proportion;
+        initial_dist + section_dist
     }
 
     pub fn distance_to_end_of_track_section(&self, distance: f32) -> f32 {

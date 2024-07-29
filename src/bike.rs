@@ -17,11 +17,12 @@ impl Plugin for BikePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (on_turning_added, on_turning_removed).run_if(in_state(PlayingState::Racing)),
+            (on_turning_added, on_turning_removed, update_bikes_positions)
+                .run_if(in_state(PlayingState::Racing)),
         )
         .add_systems(
             Update,
-            (try_action, change_speed, move_bikes, on_collision)
+            (try_action, change_speed, on_collision, move_bikes)
                 .chain()
                 .run_if(in_state(RacingState::Simulating)),
         )
@@ -187,30 +188,37 @@ impl ChangeLane {
 }
 
 fn move_bikes(
-    mut q_bike: Query<(
-        Entity,
-        &mut Bike,
-        &mut Transform,
-        Option<&BikeTurning>,
-        Option<&mut ChangeLane>,
-    )>,
+    mut q_bikes: Query<(&mut Bike, Option<&mut ChangeLane>)>,
     time: Res<Time>,
     turn_timer: Res<TurnTimer>,
+) {
+    for (mut bike, maybe_change_lane) in q_bikes.iter_mut() {
+        bike.distance += bike.speed * time.delta_seconds();
+        if let Some(mut change_lane) = maybe_change_lane {
+            change_lane.update_proportion(turn_timer.proportion_finished());
+        }
+    }
+}
+
+fn update_bikes_positions(
+    mut q_bike: Query<(
+        Entity,
+        &Bike,
+        &mut Transform,
+        Option<&BikeTurning>,
+        Option<&ChangeLane>,
+    )>,
     lanes: Res<TrackLanes>,
     mut commands: Commands,
 ) {
-    for (entity, mut bike, mut transform, maybe_turning, maybe_changing_lane) in q_bike.iter_mut() {
-        bike.distance += bike.speed * time.delta_seconds();
+    for (entity, bike, mut transform, maybe_turning, maybe_changing_lane) in q_bike.iter_mut() {
         let (pos, rot) = match maybe_changing_lane {
-            Some(mut change_lane) => {
-                change_lane.update_proportion(turn_timer.proportion_finished());
-                lanes.pos_and_rot_between_lanes(
-                    change_lane.start_lane_id,
-                    change_lane.final_lane_id,
-                    bike.distance,
-                    change_lane.current_proportion,
-                )
-            }
+            Some(change_lane) => lanes.pos_and_rot_between_lanes(
+                change_lane.start_lane_id,
+                change_lane.final_lane_id,
+                bike.distance,
+                change_lane.current_proportion,
+            ),
             None => lanes.pos_and_rot_between_lanes(
                 bike.current_lane_id,
                 bike.current_lane_id,
@@ -301,9 +309,16 @@ fn on_exit_simulating_state(
     mut q_bikes: Query<(Entity, &mut Bike, Option<&ChangeLane>)>,
     q_actions: Query<Entity, With<BikeAction>>,
     mut commands: Commands,
+    track_lanes: Res<TrackLanes>,
 ) {
     for (entity, mut bike, maybe_change_lane) in q_bikes.iter_mut() {
         if let Some(change_lane) = maybe_change_lane {
+            let new_lane_distance = track_lanes.distance_on_adjacent_lane(
+                bike.current_lane_id,
+                change_lane.final_lane(),
+                bike.distance,
+            );
+            bike.distance = new_lane_distance;
             bike.current_lane_id = change_lane.final_lane();
             commands.entity(entity).remove::<ChangeLane>();
         }
