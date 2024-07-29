@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{bike::Bike, player::Player, PlayingState, RacingState};
+use crate::{player::Player, PlayingState, RacingState};
 
 const CAMERA_MOVEMENT_SPEED: f32 = 600.0;
 

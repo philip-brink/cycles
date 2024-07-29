@@ -25,7 +25,6 @@ impl Plugin for BikePlugin {
                 .chain()
                 .run_if(in_state(RacingState::Simulating)),
         )
-        .add_systems(OnEnter(RacingState::Commanding), on_enter_commanding_state)
         .add_systems(OnExit(RacingState::Simulating), on_exit_simulating_state);
     }
 }
@@ -70,6 +69,7 @@ fn try_action(
                         commands.entity(entity).insert(ChangeSpeed {
                             start_speed: bike.speed,
                             final_speed: (bike.speed + bike.acceleration).min(bike.max_speed),
+                            instant: false,
                         });
                     }
                 }
@@ -80,6 +80,7 @@ fn try_action(
                         commands.entity(entity).insert(ChangeSpeed {
                             start_speed: bike.speed,
                             final_speed: 0.0,
+                            instant: false,
                         });
                     }
                 }
@@ -117,9 +118,12 @@ fn try_action(
 }
 
 fn change_speed(mut q_bikes: Query<(&mut Bike, &ChangeSpeed)>, turn_timer: Res<TurnTimer>) {
-    // TODO: Only increase speed if no collision in front
     for (mut bike, change_speed) in q_bikes.iter_mut() {
-        bike.speed = change_speed.current_speed(turn_timer.proportion_finished());
+        if change_speed.instant {
+            bike.speed = change_speed.final_speed;
+        } else {
+            bike.speed = change_speed.current_speed(turn_timer.proportion_finished());
+        }
     }
 }
 
@@ -127,6 +131,7 @@ fn change_speed(mut q_bikes: Query<(&mut Bike, &ChangeSpeed)>, turn_timer: Res<T
 struct ChangeSpeed {
     start_speed: f32,
     final_speed: f32,
+    instant: bool,
 }
 
 impl ChangeSpeed {
@@ -224,16 +229,26 @@ fn move_bikes(
     }
 }
 
-fn on_collision(mut q_bike_collisions: Query<(&mut Bike, &Collision, Option<&mut ChangeLane>)>) {
-    for (mut bike, collision, maybe_change_lane) in q_bike_collisions.iter_mut() {
+fn on_collision(
+    mut q_bike_collisions: Query<
+        (Entity, &Bike, &Collision, Option<&mut ChangeLane>),
+        Added<Collision>,
+    >,
+    mut commands: Commands,
+) {
+    for (entity, bike, collision, maybe_change_lane) in q_bike_collisions.iter_mut() {
         match collision.side {
             collision::CollisionSide::Front => {
                 // slow down to other bike's speed
+                commands.entity(entity).insert(ChangeSpeed {
+                    start_speed: bike.speed,
+                    final_speed: collision.other_bike_speed,
+                    instant: true,
+                });
                 let speed_difference = (bike.speed - collision.other_bike_speed).abs();
                 if speed_difference > 10.0 {
                     println!("CRASH!!!");
                 }
-                bike.speed = collision.other_bike_speed;
             }
             collision::CollisionSide::Left => {
                 if let Some(mut change_lane) = maybe_change_lane {
@@ -296,11 +311,5 @@ fn on_exit_simulating_state(
     for entity in &q_actions {
         commands.entity(entity).remove::<BikeAction>();
         commands.entity(entity).remove::<ChangeSpeed>();
-    }
-}
-
-fn on_enter_commanding_state(mut q_bikes: Query<&mut Bike>) {
-    for mut bike in q_bikes.iter_mut() {
-        //
     }
 }

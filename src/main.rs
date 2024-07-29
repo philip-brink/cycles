@@ -10,12 +10,12 @@ mod camera;
 mod collision;
 mod controls;
 mod game;
+mod hud;
 mod loading;
 mod menu;
 mod opponent;
 mod path_highlight;
 mod player;
-mod race;
 mod random;
 mod track;
 
@@ -32,7 +32,6 @@ use menu::MenuPlugin;
 use opponent::OpponentPlugin;
 use path_highlight::PathHighlightPlugin;
 use player::PlayerPlugin;
-use race::RacePlugin;
 use random::RandomnessPlugin;
 use track::TrackPlugin;
 
@@ -59,7 +58,6 @@ enum RacingState {
     #[default]
     Commanding,
     Simulating,
-    Paused,
 }
 
 fn main() {
@@ -85,7 +83,6 @@ fn main() {
             PlayerPlugin,
             OpponentPlugin,
             ControlsPlugin,
-            RacePlugin,
             PathHighlightPlugin,
         ))
         .init_state::<GameState>()

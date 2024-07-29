@@ -1,7 +1,4 @@
-use bevy::{
-    color::palettes::css::{BLACK, PURPLE, RED, WHITE},
-    prelude::*,
-};
+use bevy::{color::palettes::css::PURPLE, prelude::*};
 use bevy_prototype_lyon::{
     draw::Stroke, entity::ShapeBundle, path::PathBuilder, plugin::ShapePlugin,
 };

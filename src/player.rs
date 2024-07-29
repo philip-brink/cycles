@@ -13,8 +13,16 @@ impl Plugin for PlayerPlugin {
     }
 }
 
-#[derive(Component, Debug, Copy, Clone, PartialEq, Eq)]
-pub struct Player;
+#[derive(Component, Debug, Copy, Clone, PartialEq)]
+pub struct Player {
+    pub position: usize,
+}
+
+impl Player {
+    pub fn new() -> Self {
+        Self { position: 4 }
+    }
+}
 
 fn toggle_simulating_state(
     mut next_state: ResMut<NextState<RacingState>>,
@@ -28,9 +36,6 @@ fn toggle_simulating_state(
             }
             RacingState::Commanding => {
                 next_state.set(RacingState::Simulating);
-            }
-            RacingState::Paused => {
-                // do nothing
             }
         }
     }

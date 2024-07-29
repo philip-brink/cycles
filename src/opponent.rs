@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use crate::{
     actions::{self, BikeAction},
     bike::Bike,
+    collision::Collision,
     random::Randomness,
     RacingState,
 };
@@ -34,15 +35,15 @@ impl Plugin for OpponentPlugin {
 pub struct Opponent;
 
 fn act(
-    q_opponents: Query<(Entity, &Bike), With<Opponent>>,
+    q_opponents: Query<(Entity, &Bike, Option<&Collision>), With<Opponent>>,
     mut commands: Commands,
     mut randomness: ResMut<Randomness>,
 ) {
-    for (entity, bike) in &q_opponents {
-        if BikeAction::Accelerate.can_do(bike) {
+    for (entity, bike, maybe_collision) in &q_opponents {
+        if BikeAction::Accelerate.can_do(bike, maybe_collision) {
             commands.entity(entity).insert(BikeAction::Accelerate);
         } else {
-            let possible_actions = generate_possible_actions(bike);
+            let possible_actions = generate_possible_actions(bike, maybe_collision);
             let random_action_index = randomness.rng.usize(0..possible_actions.len());
             commands
                 .entity(entity)
@@ -51,10 +52,10 @@ fn act(
     }
 }
 
-fn generate_possible_actions(bike: &Bike) -> Vec<BikeAction> {
+fn generate_possible_actions(bike: &Bike, maybe_collision: Option<&Collision>) -> Vec<BikeAction> {
     BIKE_ACTIONS
         .iter()
-        .filter(|e| e.can_do(bike))
+        .filter(|e| e.can_do(bike, maybe_collision))
         .copied()
         .collect::<Vec<BikeAction>>()
 }

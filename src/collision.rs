@@ -11,7 +11,8 @@ impl Plugin for CollisionPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (check_for_bike_collisions).run_if(in_state(RacingState::Simulating)),
+            (check_for_bike_collisions, remove_collisions)
+                .run_if(in_state(RacingState::Simulating)),
         );
     }
 }
@@ -44,17 +45,6 @@ pub enum CollisionSide {
     Back,
 }
 
-impl CollisionSide {
-    fn opposite(&self) -> CollisionSide {
-        match self {
-            CollisionSide::Front => CollisionSide::Back,
-            CollisionSide::Left => CollisionSide::Right,
-            CollisionSide::Right => CollisionSide::Left,
-            CollisionSide::Back => CollisionSide::Front,
-        }
-    }
-}
-
 fn check_for_bike_collisions(
     q_colliders: Query<(Entity, &Collider, &Bike, &Transform, Option<&Collision>)>,
     mut commands: Commands,
@@ -63,7 +53,7 @@ fn check_for_bike_collisions(
         for (other_entity, other_collider, other_bike, other_transform, _) in &q_colliders {
             if entity != other_entity {
                 let collision_exists =
-                    collision(transform, collider, other_transform, other_collider);
+                    find_collision(transform, collider, other_transform, other_collider);
                 if collision_exists && maybe_collision.is_none() {
                     let distance_difference = bike.distance - other_bike.distance;
                     let track_center = Vec2::ZERO;
@@ -84,20 +74,39 @@ fn check_for_bike_collisions(
                     } else {
                         CollisionSide::Left
                     };
+                    println!("Add collision with bike {entity} and {other_entity} on side {collision_side:?}");
                     commands.entity(entity).insert(Collision {
                         other_entity,
                         side: collision_side,
                         other_bike_speed: other_bike.speed,
                     });
-                } else if !collision_exists && maybe_collision.is_some() {
-                    commands.entity(entity).remove::<Collision>();
                 }
             }
         }
     }
 }
 
-fn collision(
+fn remove_collisions(
+    q_collisions: Query<(Entity, &Transform, &Collider, &Collision)>,
+    q_bike_transform: Query<(&Transform, &Collider), With<Bike>>,
+    mut commands: Commands,
+) {
+    let mut collisions_to_remove = Vec::new();
+    for (entity, transform, collider, collision) in q_collisions.iter() {
+        if let Ok((other_transform, other_collider)) = q_bike_transform.get(collision.other_entity)
+        {
+            if !find_collision(transform, collider, other_transform, other_collider) {
+                collisions_to_remove.push(entity);
+            }
+        }
+    }
+    for entity in collisions_to_remove {
+        println!("remove collision between bike {entity}");
+        commands.entity(entity).remove::<Collision>();
+    }
+}
+
+fn find_collision(
     transform: &Transform,
     collider: &Collider,
     other_transform: &Transform,

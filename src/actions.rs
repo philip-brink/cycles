@@ -1,6 +1,11 @@
 use bevy::prelude::*;
 
-use crate::{bike::Bike, track::TrackLaneId, RacingState};
+use crate::{
+    bike::Bike,
+    collision::{Collision, CollisionSide},
+    track::TrackLaneId,
+    RacingState,
+};
 
 pub struct ActionsPlugin;
 
@@ -28,40 +33,61 @@ pub enum BikeAction {
 }
 
 impl BikeAction {
-    pub fn can_do(&self, bike: &Bike) -> bool {
+    pub fn can_do(&self, bike: &Bike, maybe_collision: Option<&Collision>) -> bool {
         match self {
-            BikeAction::Accelerate => bike.speed < bike.max_speed,
+            BikeAction::Accelerate => match maybe_collision {
+                Some(collision) => {
+                    collision.side != CollisionSide::Front && bike.speed < bike.max_speed
+                }
+                None => bike.speed < bike.max_speed,
+            },
             BikeAction::Watch => true,
             BikeAction::Skid => bike.speed > bike.max_speed / 2.0,
             BikeAction::Stop => bike.speed > 0.0,
-            BikeAction::Left => bike.current_lane_id != TrackLaneId::First,
+            BikeAction::Left => {
+                if bike.current_lane_id == TrackLaneId::First {
+                    false
+                } else if let Some(collision) = maybe_collision {
+                    return collision.side != CollisionSide::Left;
+                } else {
+                    return true;
+                }
+            }
             BikeAction::LeftLeft => {
-                bike.current_lane_id != TrackLaneId::First
-                    && bike.current_lane_id != TrackLaneId::Second
+                if bike.current_lane_id == TrackLaneId::First
+                    || bike.current_lane_id == TrackLaneId::Second
+                {
+                    false
+                } else if let Some(collision) = maybe_collision {
+                    return collision.side != CollisionSide::Left;
+                } else {
+                    return true;
+                }
             }
             BikeAction::LeftElbow => bike.current_lane_id != TrackLaneId::First,
             BikeAction::LeftHip => bike.current_lane_id != TrackLaneId::First,
-            BikeAction::Right => bike.current_lane_id != TrackLaneId::Fourth,
-            BikeAction::RightRight => bike.current_lane_id != TrackLaneId::Fourth,
+            BikeAction::Right => {
+                if bike.current_lane_id == TrackLaneId::Fourth {
+                    false
+                } else if let Some(collision) = maybe_collision {
+                    return collision.side != CollisionSide::Right;
+                } else {
+                    return true;
+                }
+            }
+            BikeAction::RightRight => {
+                if bike.current_lane_id == TrackLaneId::Fourth
+                    || bike.current_lane_id == TrackLaneId::Third
+                {
+                    false
+                } else if let Some(collision) = maybe_collision {
+                    return collision.side != CollisionSide::Right;
+                } else {
+                    return true;
+                }
+            }
             BikeAction::RightElbow => bike.current_lane_id != TrackLaneId::Fourth,
             BikeAction::RightHip => bike.current_lane_id != TrackLaneId::Fourth,
-        }
-    }
-
-    pub fn is_repeated(&self) -> bool {
-        match self {
-            BikeAction::Accelerate => todo!(),
-            BikeAction::Watch => todo!(),
-            BikeAction::Skid => todo!(),
-            BikeAction::Stop => todo!(),
-            BikeAction::Left => todo!(),
-            BikeAction::LeftLeft => todo!(),
-            BikeAction::LeftElbow => todo!(),
-            BikeAction::LeftHip => todo!(),
-            BikeAction::Right => todo!(),
-            BikeAction::RightRight => todo!(),
-            BikeAction::RightElbow => todo!(),
-            BikeAction::RightHip => todo!(),
         }
     }
 }
@@ -81,12 +107,12 @@ impl ActionEvent {
 fn on_action(
     mut action_events: EventReader<ActionEvent>,
     mut commands: Commands,
-    q_bikes: Query<&Bike>,
+    q_bikes: Query<(&Bike, Option<&Collision>)>,
     mut next_state: ResMut<NextState<RacingState>>,
 ) {
     for event in action_events.read() {
-        if let Ok(bike) = q_bikes.get(event.bike_entity) {
-            if event.kind.can_do(bike) {
+        if let Ok((bike, maybe_collision)) = q_bikes.get(event.bike_entity) {
+            if event.kind.can_do(bike, maybe_collision) {
                 commands.entity(event.bike_entity).insert(event.kind);
                 println!(
                     "Doing action {:?} for bike {:?}",

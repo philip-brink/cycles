@@ -8,6 +8,7 @@ use bevy::prelude::*;
 use crate::{
     actions::BikeAction,
     bike::Bike,
+    collision::Collision,
     loading::IconTextures,
     player::Player,
     track::{TrackLane, TrackLanes},
@@ -35,11 +36,11 @@ impl Plugin for ControlsPlugin {
 
 fn on_enter_commanding_state(
     mut commands: Commands,
-    q_player_bike: Query<&Bike, With<Player>>,
+    q_player_bike: Query<(&Bike, Option<&Collision>), With<Player>>,
     icon_textures: Res<IconTextures>,
     track_lanes: Res<TrackLanes>,
 ) {
-    for bike in q_player_bike.iter() {
+    for (bike, maybe_collision) in q_player_bike.iter() {
         let bike_distance = bike.distance;
         let track_lane = track_lanes.track_lane(&bike.current_lane_id);
         let row_0 = button_row_positions(bike_distance, track_lane, 0);
@@ -48,21 +49,21 @@ fn on_enter_commanding_state(
             row_0.left,
             row_0.rotation,
             &icon_textures,
-            BikeAction::LeftHip.can_do(bike),
+            BikeAction::LeftHip.can_do(bike, maybe_collision),
         ));
         commands.spawn(make_button(
             BikeAction::Stop,
             row_0.middle,
             row_0.rotation,
             &icon_textures,
-            BikeAction::Stop.can_do(bike),
+            BikeAction::Stop.can_do(bike, maybe_collision),
         ));
         commands.spawn(make_button(
             BikeAction::RightHip,
             row_0.right,
             row_0.rotation,
             &icon_textures,
-            BikeAction::RightHip.can_do(bike),
+            BikeAction::RightHip.can_do(bike, maybe_collision),
         ));
 
         let row_1 = button_row_positions(bike_distance, track_lane, 1);
@@ -71,21 +72,21 @@ fn on_enter_commanding_state(
             row_1.left,
             row_1.rotation,
             &icon_textures,
-            BikeAction::LeftElbow.can_do(bike),
+            BikeAction::LeftElbow.can_do(bike, maybe_collision),
         ));
         commands.spawn(make_button(
             BikeAction::Skid,
             row_1.middle,
             row_1.rotation,
             &icon_textures,
-            BikeAction::Skid.can_do(bike),
+            BikeAction::Skid.can_do(bike, maybe_collision),
         ));
         commands.spawn(make_button(
             BikeAction::RightElbow,
             row_1.right,
             row_1.rotation,
             &icon_textures,
-            BikeAction::RightElbow.can_do(bike),
+            BikeAction::RightElbow.can_do(bike, maybe_collision),
         ));
 
         let row_2 = button_row_positions(bike_distance, track_lane, 2);
@@ -94,21 +95,21 @@ fn on_enter_commanding_state(
             row_2.left,
             row_2.rotation,
             &icon_textures,
-            BikeAction::LeftLeft.can_do(bike),
+            BikeAction::LeftLeft.can_do(bike, maybe_collision),
         ));
         commands.spawn(make_button(
             BikeAction::Watch,
             row_2.middle,
             row_2.rotation,
             &icon_textures,
-            BikeAction::Watch.can_do(bike),
+            BikeAction::Watch.can_do(bike, maybe_collision),
         ));
         commands.spawn(make_button(
             BikeAction::RightRight,
             row_2.right,
             row_2.rotation,
             &icon_textures,
-            BikeAction::RightRight.can_do(bike),
+            BikeAction::RightRight.can_do(bike, maybe_collision),
         ));
 
         let row_3 = button_row_positions(bike_distance, track_lane, 3);
@@ -117,21 +118,21 @@ fn on_enter_commanding_state(
             row_3.left,
             row_3.rotation,
             &icon_textures,
-            BikeAction::Left.can_do(bike),
+            BikeAction::Left.can_do(bike, maybe_collision),
         ));
         commands.spawn(make_button(
             BikeAction::Accelerate,
             row_3.middle,
             row_3.rotation,
             &icon_textures,
-            BikeAction::Accelerate.can_do(bike),
+            BikeAction::Accelerate.can_do(bike, maybe_collision),
         ));
         commands.spawn(make_button(
             BikeAction::Right,
             row_3.right,
             row_3.rotation,
             &icon_textures,
-            BikeAction::Right.can_do(bike),
+            BikeAction::Right.can_do(bike, maybe_collision),
         ));
     }
 }

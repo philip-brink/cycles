@@ -2,7 +2,7 @@ use std::f32::consts::{FRAC_PI_2, PI};
 
 use bevy::prelude::*;
 
-const LAPS: i32 = 4;
+pub const LAPS: usize = 4;
 const STRAIGHT_DISTANCE: f32 = 2000.0;
 const TURN_RADIUS: f32 = 620.0;
 const LANE_WIDTH: f32 = 100.0;
@@ -65,6 +65,9 @@ impl TrackLanes {
         (pos_lerp, rot_lerp)
     }
 }
+
+#[derive(Component)]
+pub struct Track;
 
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub enum TrackLaneId {
@@ -318,7 +321,7 @@ impl TrackLane {
         }
     }
 
-    pub fn finished(&self, distance: f32) -> bool {
-        distance >= self.lap_distance * LAPS as f32
+    pub fn laps_finished(&self, distance: f32) -> usize {
+        (distance / self.lap_distance).floor() as usize
     }
 }
