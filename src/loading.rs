@@ -31,7 +31,7 @@ impl FromWorld for TrackTexture {
 pub struct BikeTextures {
     pub straight: Handle<Image>,
     pub turn: Handle<Image>,
-    pub turn_extreme: Handle<Image>,
+    // pub turn_extreme: Handle<Image>,
 }
 
 impl FromWorld for BikeTextures {
@@ -39,7 +39,7 @@ impl FromWorld for BikeTextures {
         Self {
             straight: world.load_asset("images/bike/bike_straight.png"),
             turn: world.load_asset("images/bike/bike_turn.png"),
-            turn_extreme: world.load_asset("images/bike/bike_turn_extreme.png"),
+            // turn_extreme: world.load_asset("images/bike/bike_turn_extreme.png"),
         }
     }
 }
@@ -58,6 +58,7 @@ pub struct IconTextures {
     pub right_right: Handle<Image>,
     pub right_elbow: Handle<Image>,
     pub right_hip: Handle<Image>,
+    pub collision: Handle<Image>,
 }
 
 impl FromWorld for IconTextures {
@@ -75,6 +76,7 @@ impl FromWorld for IconTextures {
             right_right: world.load_asset("images/icons/right_right.png"),
             right_elbow: world.load_asset("images/icons/right_elbow.png"),
             right_hip: world.load_asset("images/icons/right_hip.png"),
+            collision: world.load_asset("images/icons/collision.png"),
         }
     }
 }
