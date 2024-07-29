@@ -5,7 +5,6 @@ use crate::{
     collision::{self, Collision},
     game::TurnTimer,
     loading::BikeTextures,
-    player::Player,
     track::{TrackLaneId, TrackLanes},
     PlayingState, RacingState,
 };
@@ -27,6 +26,7 @@ impl Plugin for BikePlugin {
                 .chain()
                 .run_if(in_state(RacingState::Simulating)),
         )
+        .add_systems(OnEnter(RacingState::Simulating), check_slip)
         .add_systems(OnExit(RacingState::Simulating), on_exit_simulating_state);
     }
 }
@@ -291,6 +291,38 @@ fn on_collision(
             }
             collision::CollisionSide::Back => {
                 // do nothing
+            }
+        }
+    }
+}
+
+fn check_slip(
+    q_bike: Query<(Entity, &Bike, Option<&BikeAction>)>,
+    track_lanes: Res<TrackLanes>,
+    mut commands: Commands,
+) {
+    for (entity, bike, maybe_bike_action) in &q_bike {
+        if let Some(bike_action) = maybe_bike_action {
+            if *bike_action == BikeAction::Skid {
+                return;
+            }
+        }
+        if track_lanes
+            .track_lane(&bike.current_lane_id)
+            .in_turn(bike.distance)
+        {
+            let max_turn_speed = ((4 - bike.current_lane_id as i32) * 400) as f32;
+            if bike.speed > max_turn_speed {
+                let final_lane_id = if bike.speed - max_turn_speed > 800.0 {
+                    println!("SLIP DOUBLE");
+                    bike.current_lane_id.right_right()
+                } else {
+                    println!("SLIP");
+                    bike.current_lane_id.right()
+                };
+                commands
+                    .entity(entity)
+                    .insert(ChangeLane::new(bike.current_lane_id, final_lane_id));
             }
         }
     }
