@@ -2,6 +2,8 @@ use bevy::prelude::*;
 
 use crate::{player::Player, GameState, PlayingState};
 
+use super::{LapEvent, LAPS};
+
 const BUTTON_NORMAL_COLOR: Color = Color::srgb(0.15, 0.15, 0.15);
 const BUTTON_HOVERED_COLOR: Color = Color::srgb(0.25, 0.25, 0.25);
 const BUTTON_PRESSED_COLOR: Color = Color::srgb(0.35, 0.75, 0.35);
@@ -14,12 +16,16 @@ pub struct FinishRacePlugin;
 
 impl Plugin for FinishRacePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(PlayingState::FinishRace), setup_position_display)
-            .add_systems(OnExit(PlayingState::FinishRace), teardown)
-            .add_systems(
-                Update,
-                button_system.run_if(in_state(PlayingState::FinishRace)),
-            );
+        app.add_systems(
+            Update,
+            read_lap_events.run_if(in_state(PlayingState::Racing)),
+        )
+        .add_systems(OnEnter(PlayingState::FinishRace), setup_position_display)
+        .add_systems(OnExit(PlayingState::FinishRace), teardown)
+        .add_systems(
+            Update,
+            button_system.run_if(in_state(PlayingState::FinishRace)),
+        );
     }
 }
 
@@ -30,6 +36,18 @@ struct FinishRaceDisplay;
 enum ButtonAction {
     Menu,
     Quit,
+}
+
+fn read_lap_events(
+    mut lap_event: EventReader<LapEvent>,
+    q_player: Query<&Player>,
+    mut next_state: ResMut<NextState<PlayingState>>,
+) {
+    for event in lap_event.read() {
+        if event.laps >= LAPS && q_player.get(event.entity).is_ok() {
+            next_state.set(PlayingState::FinishRace);
+        }
+    }
 }
 
 fn setup_position_display(

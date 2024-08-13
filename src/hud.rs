@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::{
-    game::LapEvent,
+    game::{LapEvent, LAPS},
     player::{Player, PlayerPositionEvent},
     PlayingState,
 };
@@ -37,7 +37,7 @@ struct PositionDisplay;
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     let font_handle = asset_server.load("fonts/FiraSans-Bold.ttf");
-    // LAPS
+    let laps_string = format!("/{LAPS}");
     commands.spawn((
         HudElement,
         LapDisplay,
@@ -59,7 +59,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                 },
             ),
             TextSection::new(
-                "/4",
+                laps_string,
                 TextStyle {
                     font_size: HUD_FONT_SIZE,
                     color: TEXT_COLOR,

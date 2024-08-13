@@ -16,6 +16,8 @@ use crate::{
 
 use self::finish_race::FinishRacePlugin;
 
+pub const LAPS: usize = 4;
+
 pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
