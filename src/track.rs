@@ -19,9 +19,8 @@ pub struct TrackVisual;
 
 #[derive(Component, Copy, Clone, Debug)]
 pub struct TrackPosition {
-    pub distance_from_start: f32,
+    distance_from_start: f32,
     pub distance_from_inner_edge: f32,
-    laps_completed: u8,
 }
 
 impl TrackPosition {
@@ -30,22 +29,25 @@ impl TrackPosition {
         Self {
             distance_from_start: 0.0,
             distance_from_inner_edge,
-            laps_completed: 0,
         }
     }
 
+    pub fn total_distance(&self) -> f32 {
+        self.distance_from_start
+    }
+
+    pub fn distance_on_track(&self, track: &Track) -> f32 {
+        track.distance_from_start_in_bounds(self.distance_from_start)
+    }
+
     pub fn advance(&mut self, distance_movement: f32, track: &Track) {
+        let distance_on_track = self.distance_on_track(track);
         let adjusted_distance_movement = track.movement_at_distance_from_inner_edge(
-            self.distance_from_start,
+            distance_on_track,
             self.distance_from_inner_edge,
             distance_movement,
         );
-        let new_distance_from_start = self.distance_from_start + adjusted_distance_movement;
-        if track.lap_complete(new_distance_from_start) {
-            self.laps_completed += 1;
-        }
-        self.distance_from_start = track
-            .distance_from_start_in_bounds(self.distance_from_start + adjusted_distance_movement);
+        self.distance_from_start += adjusted_distance_movement;
     }
 
     pub fn set_distance_from_inside(&mut self, distance_from_inside: f32) {
@@ -53,11 +55,10 @@ impl TrackPosition {
     }
 
     pub fn position_and_rotation(&self, track: &Track) -> (Vec2, Quat) {
-        track.position_and_rotation(self.distance_from_start, self.distance_from_inner_edge)
-    }
-
-    pub fn total_distance(&self, track: &Track) -> f32 {
-        (self.laps_completed as f32 * track.total_distance) + self.distance_from_start
+        track.position_and_rotation(
+            track.distance_from_start_in_bounds(self.distance_from_start),
+            self.distance_from_inner_edge,
+        )
     }
 
     pub fn in_turn(&self, track: &Track) -> bool {
@@ -144,12 +145,12 @@ impl Track {
         }
     }
 
-    fn lap_complete(&self, distance_from_start: f32) -> bool {
-        distance_from_start >= self.total_distance
-    }
-
     fn distance_from_start_in_bounds(&self, distance_from_start: f32) -> f32 {
         distance_from_start % self.total_distance
+    }
+
+    pub fn num_laps_completed(&self, distance_from_start: f32) -> usize {
+        (distance_from_start / self.total_distance).floor() as usize
     }
 
     /// Determine the position and rotation at a specified distance
@@ -160,16 +161,17 @@ impl Track {
         distance_from_inner_edge: f32,
     ) -> (Vec2, Quat) {
         let turn_radius = TURN_RADIUS + distance_from_inner_edge;
-        match self.in_track_section(distance_from_start) {
+        let distance_on_track = self.distance_from_start_in_bounds(distance_from_start);
+        match self.in_track_section(distance_on_track) {
             TrackSection::FirstStraightawayAfterFinishLine => {
-                let horizontal = distance_from_start;
+                let horizontal = distance_on_track;
                 let vertical = -self.vertical_offset - distance_from_inner_edge;
                 let rot = Quat::from_rotation_z(0.0);
                 (Vec2::new(horizontal, vertical), rot)
             }
             TrackSection::FirstTurn => {
                 let circle_dist =
-                    distance_from_start - self.first_straightaway_after_finish_line_dist;
+                    distance_on_track - self.first_straightaway_after_finish_line_dist;
                 let position_angle_offset = circle_dist / TURN_RADIUS;
                 let position_angle = 3.0 * PI / 2.0 + position_angle_offset;
                 let horizontal = self.half_straight_distance + turn_radius * position_angle.cos();
@@ -179,13 +181,13 @@ impl Track {
             }
             TrackSection::SecondStraightaway => {
                 let horizontal =
-                    self.half_straight_distance - (distance_from_start - self.first_turn_dist);
+                    self.half_straight_distance - (distance_on_track - self.first_turn_dist);
                 let vertical = self.vertical_offset + distance_from_inner_edge;
                 let rot = Quat::from_rotation_z(PI);
                 (Vec2::new(horizontal, vertical), rot)
             }
             TrackSection::SecondTurn => {
-                let circle_dist = distance_from_start - self.second_straightaway_dist;
+                let circle_dist = distance_on_track - self.second_straightaway_dist;
                 let position_angle_offset = circle_dist / TURN_RADIUS;
                 let position_angle = PI / 2.0 + position_angle_offset;
                 let horizontal = -self.half_straight_distance + turn_radius * position_angle.cos();
@@ -195,7 +197,7 @@ impl Track {
             }
             TrackSection::FirstStraightawayBeforeFinishLine => {
                 let horizontal =
-                    -self.half_straight_distance + (distance_from_start - self.second_turn_dist);
+                    -self.half_straight_distance + (distance_on_track - self.second_turn_dist);
                 let vertical = -self.vertical_offset - distance_from_inner_edge;
                 let rot = Quat::from_rotation_z(0.0);
                 (Vec2::new(horizontal, vertical), rot)

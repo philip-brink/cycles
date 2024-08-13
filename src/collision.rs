@@ -5,7 +5,12 @@ use bevy::{
     prelude::*,
 };
 
-use crate::{bike::Bike, loading::IconTextures, track::TrackPosition, RacingState};
+use crate::{
+    bike::Bike,
+    loading::IconTextures,
+    track::{Track, TrackPosition},
+    RacingState,
+};
 
 pub struct CollisionPlugin;
 
@@ -75,6 +80,7 @@ fn check_for_bike_collisions(
     )>,
     mut commands: Commands,
     mut collision_event: EventWriter<CollisionEvent>,
+    track: Res<Track>,
 ) {
     for (entity, collider, bike, track_position, transform, maybe_collision) in &q_colliders {
         for (other_entity, other_collider, other_bike, other_track_position, other_transform, _) in
@@ -84,8 +90,8 @@ fn check_for_bike_collisions(
                 let collision_exists =
                     find_collision(transform, collider, other_transform, other_collider);
                 if collision_exists && maybe_collision.is_none() {
-                    let distance_difference = track_position.distance_from_start
-                        - other_track_position.distance_from_start;
+                    let distance_difference = track_position.distance_on_track(&track)
+                        - other_track_position.distance_on_track(&track);
                     let track_center = Vec2::ZERO;
                     let dist_from_center = track_center.distance(transform.translation.xy());
                     let other_dist_from_center =

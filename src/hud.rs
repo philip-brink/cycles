@@ -1,6 +1,10 @@
 use bevy::prelude::*;
 
-use crate::{game::LapEvent, player::PlayerPositionEvent, PlayingState};
+use crate::{
+    game::LapEvent,
+    player::{Player, PlayerPositionEvent},
+    PlayingState,
+};
 
 const HUD_FONT_SIZE: f32 = 20.0;
 const HUD_TEXT_PADDING: Val = Val::Px(5.0);
@@ -108,10 +112,13 @@ fn teardown(mut commands: Commands, q_hud: Query<Entity, With<HudElement>>) {
 fn update_laps(
     mut lap_event: EventReader<LapEvent>,
     mut q_lap_display: Query<&mut Text, With<LapDisplay>>,
+    q_player: Query<&Player>,
 ) {
     for event in lap_event.read() {
-        let mut text = q_lap_display.single_mut();
-        text.sections[1].value = event.0.to_string();
+        if q_player.get(event.entity).is_ok() {
+            let mut text = q_lap_display.single_mut();
+            text.sections[1].value = event.laps.to_string();
+        }
     }
 }
 

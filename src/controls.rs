@@ -41,9 +41,9 @@ fn on_enter_commanding_state(
     track: Res<Track>,
 ) {
     for (bike, track_position, maybe_collision) in q_player_bike.iter() {
-        let bike_distance_from_start = track_position.distance_from_start;
         let bike_distance_from_inner_edge = track_position.distance_from_inner_edge;
-        let row_0_distance_from_start = bike_distance_from_start + BIKE_TO_BUTTON_SPACING;
+        let row_0_distance_from_start =
+            track_position.distance_on_track(&track) + BIKE_TO_BUTTON_SPACING;
         let (row_0_pos, row_0_rot) =
             track.position_and_rotation(row_0_distance_from_start, bike_distance_from_inner_edge);
         let row_0 = button_row_positions(row_0_pos, row_0_rot);

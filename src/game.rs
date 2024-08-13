@@ -31,7 +31,7 @@ impl Plugin for GamePlugin {
             .add_systems(OnEnter(PlayingState::SetupRace), set_playing_state)
             .add_systems(
                 Update,
-                (tick_turn_timer).run_if(in_state(RacingState::Simulating)),
+                (tick_turn_timer, update_laps).run_if(in_state(RacingState::Simulating)),
             )
             .add_systems(OnEnter(RacingState::Simulating), reset_timer)
             .add_systems(OnExit(GameState::Playing), teardown);
@@ -39,7 +39,10 @@ impl Plugin for GamePlugin {
 }
 
 #[derive(Event)]
-pub struct LapEvent(pub usize);
+pub struct LapEvent {
+    pub entity: Entity,
+    pub laps: usize,
+}
 
 #[derive(Resource)]
 pub struct TurnTimer {
@@ -147,4 +150,21 @@ fn setup_bikes(
 
 fn set_playing_state(mut next_state: ResMut<NextState<PlayingState>>) {
     next_state.set(PlayingState::Racing);
+}
+
+fn update_laps(
+    mut q_bikes: Query<(Entity, &mut Bike, &TrackPosition), Changed<TrackPosition>>,
+    track: Res<Track>,
+    mut lap_events: EventWriter<LapEvent>,
+) {
+    for (entity, mut bike, track_position) in q_bikes.iter_mut() {
+        let num_laps_complete = track.num_laps_completed(track_position.total_distance());
+        if bike.laps != num_laps_complete {
+            bike.laps = num_laps_complete;
+            lap_events.send(LapEvent {
+                entity,
+                laps: num_laps_complete,
+            });
+        }
+    }
 }

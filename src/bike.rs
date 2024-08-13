@@ -45,6 +45,7 @@ pub struct Bike {
     pub max_speed: f32,
     pub acceleration: f32,
     pub current_lane_id: TrackLaneId,
+    pub laps: usize,
     // pub grip: f32,
 }
 

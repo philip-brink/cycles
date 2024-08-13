@@ -36,7 +36,7 @@ fn show_path_highlight(
         let path_length = bike.speed;
         while current_path_length < path_length {
             let path_length_remaining = path_length - current_path_length;
-            let path_marker = track_position.distance_from_start + current_path_length;
+            let path_marker = track_position.distance_on_track(&track) + current_path_length;
             let section_end_distance = track.distance_to_end_of_track_section(path_marker);
             let path_section_end_distance = section_end_distance.min(path_length_remaining);
             let end_distance_along_track = path_marker + path_section_end_distance;
