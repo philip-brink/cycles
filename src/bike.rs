@@ -2,10 +2,10 @@ use bevy::prelude::*;
 
 use crate::{
     actions::BikeAction,
-    collision::{self, Collision},
+    collision::{self, Collider, Collision},
     game::TurnTimer,
     loading::BikeTextures,
-    track::{TrackLaneId, TrackLanes},
+    track::{Track, TrackLaneId, TrackPosition},
     PlayingState, RacingState,
 };
 
@@ -31,22 +31,29 @@ impl Plugin for BikePlugin {
     }
 }
 
+#[derive(Bundle)]
+pub struct BikeBundle {
+    pub bike: Bike,
+    pub track_position: TrackPosition,
+    pub collider: Collider,
+    pub sprite_bundle: SpriteBundle,
+}
+
 #[derive(Component, Debug, Clone, Copy, Default)]
 pub struct Bike {
-    pub current_lane_id: TrackLaneId,
-    pub distance: f32,
     pub speed: f32,
     pub max_speed: f32,
     pub acceleration: f32,
+    pub current_lane_id: TrackLaneId,
     // pub grip: f32,
 }
 
 impl Bike {
-    pub fn new(initial_lane: &TrackLaneId, max_speed: f32, _grip: f32, acceleration: f32) -> Self {
+    pub fn new(max_speed: f32, acceleration: f32, initial_lane: TrackLaneId) -> Self {
         Self {
-            current_lane_id: *initial_lane,
             max_speed,
             acceleration,
+            current_lane_id: initial_lane,
             // grip,
             ..Default::default()
         }
@@ -178,6 +185,7 @@ impl ChangeLane {
             changing_to_left: current.is_to_right_of(desired),
         }
     }
+
     fn update_proportion(&mut self, turn_proportion_elapsed: f32) {
         if self.lane_clear {
             self.current_proportion = 0.0.lerp(1.0, turn_proportion_elapsed);
@@ -185,6 +193,13 @@ impl ChangeLane {
             self.current_proportion = self.current_proportion.lerp(0.0, turn_proportion_elapsed);
         }
     }
+
+    fn current_distance_from_inner_edge(&self) -> f32 {
+        let start_lane_dist = self.start_lane_id.distance_from_inner_edge();
+        let end_lane_dist = self.final_lane_id.distance_from_inner_edge();
+        start_lane_dist.lerp(end_lane_dist, self.current_proportion)
+    }
+
     fn final_lane(&self) -> TrackLaneId {
         if self.double_lane_change {
             if self.current_proportion < 0.4 {
@@ -203,44 +218,27 @@ impl ChangeLane {
 }
 
 fn move_bikes(
-    mut q_bikes: Query<(&mut Bike, Option<&mut ChangeLane>)>,
+    mut q_bikes: Query<(&Bike, &mut TrackPosition, Option<&mut ChangeLane>)>,
+    track: Res<Track>,
     time: Res<Time>,
     turn_timer: Res<TurnTimer>,
 ) {
-    for (mut bike, maybe_change_lane) in q_bikes.iter_mut() {
-        bike.distance += bike.speed * time.delta_seconds();
+    for (bike, mut track_position, maybe_change_lane) in q_bikes.iter_mut() {
+        track_position.advance(bike.speed * time.delta_seconds(), &track);
         if let Some(mut change_lane) = maybe_change_lane {
             change_lane.update_proportion(turn_timer.proportion_finished());
+            track_position.set_distance_from_inside(change_lane.current_distance_from_inner_edge());
         }
     }
 }
 
 fn update_bikes_positions(
-    mut q_bike: Query<(
-        Entity,
-        &Bike,
-        &mut Transform,
-        Option<&BikeTurning>,
-        Option<&ChangeLane>,
-    )>,
-    lanes: Res<TrackLanes>,
+    mut q_bike: Query<(Entity, &TrackPosition, &mut Transform, Option<&BikeTurning>), With<Bike>>,
+    track: Res<Track>,
     mut commands: Commands,
 ) {
-    for (entity, bike, mut transform, maybe_turning, maybe_changing_lane) in q_bike.iter_mut() {
-        let (pos, rot) = match maybe_changing_lane {
-            Some(change_lane) => lanes.pos_and_rot_between_lanes(
-                change_lane.start_lane_id,
-                change_lane.final_lane_id,
-                bike.distance,
-                change_lane.current_proportion,
-            ),
-            None => lanes.pos_and_rot_between_lanes(
-                bike.current_lane_id,
-                bike.current_lane_id,
-                bike.distance,
-                0.0,
-            ),
-        };
+    for (entity, track_position, mut transform, maybe_turning) in q_bike.iter_mut() {
+        let (pos, rot) = track_position.position_and_rotation(&track);
         transform.translation = pos.extend(5.0);
         let turning = (transform.rotation - rot).length_squared() > TURNING_THRESHOLD;
         transform.rotation = rot;
@@ -297,20 +295,17 @@ fn on_collision(
 }
 
 fn check_slip(
-    q_bike: Query<(Entity, &Bike, Option<&BikeAction>)>,
-    track_lanes: Res<TrackLanes>,
+    q_bike: Query<(Entity, &Bike, &TrackPosition, Option<&BikeAction>)>,
+    track: Res<Track>,
     mut commands: Commands,
 ) {
-    for (entity, bike, maybe_bike_action) in &q_bike {
+    for (entity, bike, track_position, maybe_bike_action) in &q_bike {
         if let Some(bike_action) = maybe_bike_action {
             if *bike_action == BikeAction::Skid {
                 return;
             }
         }
-        if track_lanes
-            .track_lane(&bike.current_lane_id)
-            .in_turn(bike.distance)
-        {
+        if track_position.in_turn(&track) {
             let max_turn_speed = ((4 - bike.current_lane_id as i32) * 400) as f32;
             if bike.speed > max_turn_speed {
                 let final_lane_id = if bike.speed - max_turn_speed > 800.0 {
@@ -356,16 +351,9 @@ fn on_exit_simulating_state(
     mut q_bikes: Query<(Entity, &mut Bike, Option<&ChangeLane>)>,
     q_actions: Query<Entity, With<BikeAction>>,
     mut commands: Commands,
-    track_lanes: Res<TrackLanes>,
 ) {
     for (entity, mut bike, maybe_change_lane) in q_bikes.iter_mut() {
         if let Some(change_lane) = maybe_change_lane {
-            let new_lane_distance = track_lanes.distance_on_adjacent_lane(
-                bike.current_lane_id,
-                change_lane.final_lane(),
-                bike.distance,
-            );
-            bike.distance = new_lane_distance;
             bike.current_lane_id = change_lane.final_lane();
             commands.entity(entity).remove::<ChangeLane>();
         }

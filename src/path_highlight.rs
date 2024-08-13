@@ -3,7 +3,12 @@ use bevy_prototype_lyon::{
     draw::Stroke, entity::ShapeBundle, path::PathBuilder, plugin::ShapePlugin,
 };
 
-use crate::{bike::Bike, player::Player, track::TrackLanes, RacingState};
+use crate::{
+    bike::Bike,
+    player::Player,
+    track::{Track, TrackPosition},
+    RacingState,
+};
 
 pub struct PathHighlightPlugin;
 
@@ -19,33 +24,35 @@ impl Plugin for PathHighlightPlugin {
 struct PathHighlight;
 
 fn show_path_highlight(
-    bikes: Query<&Bike, With<Player>>,
+    bikes: Query<(&Bike, &TrackPosition), With<Player>>,
     mut commands: Commands,
-    track_lanes: Res<TrackLanes>,
+    track: Res<Track>,
 ) {
-    for bike in bikes.iter() {
-        let lane = track_lanes.track_lane(&bike.current_lane_id);
-        let (pos, _) = lane.position_and_rotation(bike.distance);
+    for (bike, track_position) in bikes.iter() {
+        let (pos, _) = track_position.position_and_rotation(&track);
         let mut path_builder = PathBuilder::new();
         path_builder.move_to(pos);
         let mut current_path_length = 0.0;
         let path_length = bike.speed;
         while current_path_length < path_length {
             let path_length_remaining = path_length - current_path_length;
-            let path_marker = bike.distance + current_path_length;
-            let section_end_distance = lane.distance_to_end_of_track_section(path_marker);
+            let path_marker = track_position.distance_from_start + current_path_length;
+            let section_end_distance = track.distance_to_end_of_track_section(path_marker);
             let path_section_end_distance = section_end_distance.min(path_length_remaining);
             let end_distance_along_track = path_marker + path_section_end_distance;
-            if lane.in_turn(path_marker) {
-                // draw turn
-                // let start_dist = bike.distance + path_section_end_distance;
-                // let end_dist = path_marker + path_section_end_distance;
-                let (center, radii, sweep_angle, x_rotation) =
-                    lane.turn_curve_components(path_marker, end_distance_along_track);
+            if track.in_turn(path_marker) {
+                let (center, radii, sweep_angle, x_rotation) = track.turn_curve_components(
+                    path_marker,
+                    end_distance_along_track,
+                    track_position.distance_from_inner_edge,
+                );
                 path_builder.arc(center, radii, sweep_angle, x_rotation);
             } else {
                 // draw straightaway
-                let (end_pos, _) = lane.position_and_rotation(end_distance_along_track);
+                let (end_pos, _) = track.position_and_rotation(
+                    end_distance_along_track,
+                    track_position.distance_from_inner_edge,
+                );
                 path_builder.line_to(end_pos);
             }
             // need to add just a little extra to avoid floating point equality problems

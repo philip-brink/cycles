@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{bike::Bike, game::LapEvent, opponent::Opponent, player::Player, PlayingState};
+use crate::{game::LapEvent, player::PlayerPositionEvent, PlayingState};
 
 const HUD_FONT_SIZE: f32 = 20.0;
 const HUD_TEXT_PADDING: Val = Val::Px(5.0);
@@ -116,23 +116,11 @@ fn update_laps(
 }
 
 fn update_position(
-    q_opponents: Query<&Bike, With<Opponent>>,
-    q_player: Query<&Bike, With<Player>>,
+    mut player_position_events: EventReader<PlayerPositionEvent>,
     mut q_position_display: Query<&mut Text, With<PositionDisplay>>,
 ) {
-    if let Ok(player_bike) = q_player.get_single() {
-        let player_distance = player_bike.distance;
-        let mut opponent_distances = Vec::new();
-        for opponent_bike in &q_opponents {
-            opponent_distances.push(opponent_bike.distance);
-        }
-        let mut player_pos = 4;
-        for opponent_distance in opponent_distances {
-            if player_distance > opponent_distance {
-                player_pos -= 1;
-            }
-        }
+    for event in player_position_events.read() {
         let mut text = q_position_display.single_mut();
-        text.sections[1].value = player_pos.to_string();
+        text.sections[1].value = event.0.to_string();
     }
 }

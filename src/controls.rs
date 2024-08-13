@@ -11,7 +11,7 @@ use crate::{
     collision::Collision,
     loading::IconTextures,
     player::Player,
-    track::{TrackLane, TrackLanes},
+    track::{Track, TrackPosition},
     RacingState,
 };
 
@@ -36,14 +36,17 @@ impl Plugin for ControlsPlugin {
 
 fn on_enter_commanding_state(
     mut commands: Commands,
-    q_player_bike: Query<(&Bike, Option<&Collision>), With<Player>>,
+    q_player_bike: Query<(&Bike, &TrackPosition, Option<&Collision>), With<Player>>,
     icon_textures: Res<IconTextures>,
-    track_lanes: Res<TrackLanes>,
+    track: Res<Track>,
 ) {
-    for (bike, maybe_collision) in q_player_bike.iter() {
-        let bike_distance = bike.distance;
-        let track_lane = track_lanes.track_lane(&bike.current_lane_id);
-        let row_0 = button_row_positions(bike_distance, track_lane, 0);
+    for (bike, track_position, maybe_collision) in q_player_bike.iter() {
+        let bike_distance_from_start = track_position.distance_from_start;
+        let bike_distance_from_inner_edge = track_position.distance_from_inner_edge;
+        let row_0_distance_from_start = bike_distance_from_start + BIKE_TO_BUTTON_SPACING;
+        let (row_0_pos, row_0_rot) =
+            track.position_and_rotation(row_0_distance_from_start, bike_distance_from_inner_edge);
+        let row_0 = button_row_positions(row_0_pos, row_0_rot);
         commands.spawn(make_button(
             BikeAction::LeftHip,
             row_0.left,
@@ -66,7 +69,10 @@ fn on_enter_commanding_state(
             BikeAction::RightHip.can_do(bike, maybe_collision),
         ));
 
-        let row_1 = button_row_positions(bike_distance, track_lane, 1);
+        let row_1_distance_from_start = row_0_distance_from_start + BUTTON_SPACING;
+        let (row_1_pos, row_1_rot) =
+            track.position_and_rotation(row_1_distance_from_start, bike_distance_from_inner_edge);
+        let row_1 = button_row_positions(row_1_pos, row_1_rot);
         commands.spawn(make_button(
             BikeAction::LeftElbow,
             row_1.left,
@@ -89,7 +95,10 @@ fn on_enter_commanding_state(
             BikeAction::RightElbow.can_do(bike, maybe_collision),
         ));
 
-        let row_2 = button_row_positions(bike_distance, track_lane, 2);
+        let row_2_distance_from_start = row_1_distance_from_start + BUTTON_SPACING;
+        let (row_2_pos, row_2_rot) =
+            track.position_and_rotation(row_2_distance_from_start, bike_distance_from_inner_edge);
+        let row_2 = button_row_positions(row_2_pos, row_2_rot);
         commands.spawn(make_button(
             BikeAction::LeftLeft,
             row_2.left,
@@ -112,7 +121,10 @@ fn on_enter_commanding_state(
             BikeAction::RightRight.can_do(bike, maybe_collision),
         ));
 
-        let row_3 = button_row_positions(bike_distance, track_lane, 3);
+        let row_3_distance_from_start = row_2_distance_from_start + BUTTON_SPACING;
+        let (row_3_pos, row_3_rot) =
+            track.position_and_rotation(row_3_distance_from_start, bike_distance_from_inner_edge);
+        let row_3 = button_row_positions(row_3_pos, row_3_rot);
         commands.spawn(make_button(
             BikeAction::Left,
             row_3.left,
@@ -143,13 +155,7 @@ fn on_enter_simulating_state(mut commands: Commands, q_buttons: Query<Entity, Wi
     }
 }
 
-fn button_row_positions(
-    bike_distance: f32,
-    track_lane: &TrackLane,
-    row_index: usize,
-) -> ButtonRowPositions {
-    let distance = bike_distance + BIKE_TO_BUTTON_SPACING + row_index as f32 * BUTTON_SPACING;
-    let (position, rotation) = track_lane.position_and_rotation(distance);
+fn button_row_positions(position: Vec2, rotation: Quat) -> ButtonRowPositions {
     let middle = position.extend(10.0);
     let constant_button_rotation = Quat::from_rotation_z(-FRAC_PI_2);
     let button_rotation = constant_button_rotation.mul_quat(rotation);
